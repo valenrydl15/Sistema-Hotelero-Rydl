@@ -1,2 +1,2 @@
 # Sistema-Hotelero-Rydl
-Sistema de gestión hotelera en C# / SQL Server. Módulo de login y lógica de negocio en desarrollo.
+Sistema de gestión hotelera desarrollado en C# con Windows Forms y SQL Server como motor de base de datos. Actualmente incluye el módulo de autenticación (login) con soporte multi-idioma (Español, Inglés, Alemán). El proyecto está en desarrollo activo: la próxima etapa consiste en implementar la lógica de negocio (gestión de reservas, habitaciones, clientes y check-in/check-out). Incluye documentación de análisis y diseño del sistema.
