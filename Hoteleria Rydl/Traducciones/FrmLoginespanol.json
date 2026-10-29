@@ -1,0 +1,12 @@
+{
+  "btnSalir": "SALIR",
+  "btnIngresar": "INGRESAR",
+  "txtClave": "",
+  "txtUsuario": "",
+  "lblMensaje": "",
+  "lblInfo": "Usuario: DNI + Nombre | Contraseña: DNI + Apellido",
+  "lblClave": "Contraseña",
+  "lblUsuario": "Usuario",
+  "lblSubtitulo": "Sistema de Gestion Hotelera",
+  "lblHotel": "HOTEL RYDL"
+}

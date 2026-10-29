@@ -1,0 +1,13 @@
+{
+  "btnGenerarJson": "Json",
+  "btnSalir": "BEENDEN",
+  "btnIngresar": "ANMELDEN",
+  "txtClave": "",
+  "txtUsuario": "",
+  "lblMensaje": "",
+  "lblInfo": "Benutzer: Ausweis + Vorname | Passwort: Ausweis + Nachname",
+  "lblClave": "Passwort",
+  "lblUsuario": "Benutzer",
+  "lblSubtitulo": "Hotelverwaltungssystem",
+  "lblHotel": "HOTEL RYDL"
+}

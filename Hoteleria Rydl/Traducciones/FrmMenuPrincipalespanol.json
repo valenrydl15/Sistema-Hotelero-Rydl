@@ -1,0 +1,22 @@
+{
+  "btnGenerarFamilia": "Generador Familia",
+  "btnGenerarRoles": "Generador Roles",
+  "GenerarJson": "GenerarJson",
+  "btnCambiarIdioma": "Cambiar Idioma",
+  "btnReeLogin": "ReeLogin",
+  "btnCerrarSesion": "Cerrar Sesion",
+  "btnInsumos": "Reposición de Insumos",
+  "btnCheckin": "Check-in / Check-out",
+  "btnCambiarClave": "Cambiar Contraseña",
+  "btnBitacora": "Bitacora de Eventos",
+  "btnUsuarios": "Gestion de Usuarios",
+  "lblBienvenida": "Bienvenido/a | Rol: ",
+  "lblHotel": "HOTEL RYDL",
+  "lblSubtitulo": "SISTEMA DE GESTIÓN HOTELERA",
+  "lblSecOperacion": "OPERACIÓN",
+  "lblSecAdmin": "ADMINISTRACIÓN",
+  "lblSecCuenta": "CUENTA",
+  "lblAccesoTitulo": "Recepción",
+  "lblAccesoTexto": "Registrá el ingreso y la salida de huéspedes desde una única pantalla: habitación, cliente y cobro.",
+  "btnAccesoRecepcion": "Abrir Recepción  →"
+}

@@ -1,0 +1,17 @@
+{
+  "lblTitulo": "Familienverwaltung",
+  "lblFamiliasExistentes": "Vorhandene Familien",
+  "lblDisponibles": "Verfügbar (Doppelklick zum Hinzufügen)",
+  "lblSeleccionados": "Ausgewählte Komponenten",
+  "lblNombre": "Name:",
+  "btnSalir": "Beenden",
+  "btnAplicar": "Anwenden",
+  "btnEliminar": "Löschen",
+  "btnModificar": "Ändern",
+  "btnGenerar": "Erstellen",
+  "btnVerPermisos": "Berechtigungen anzeigen",
+  "btnCancelar": "Abbrechen",
+  "txtNombre": "",
+  "lblFiltro": "Familien und Berechtigungen",
+  "lblMensaje": "Ansichtsmodus",
+}

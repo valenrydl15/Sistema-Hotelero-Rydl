@@ -1,0 +1,17 @@
+{
+  "btnCancelar": "Cancelar",
+  "lblMensaje": "Modo Consulta",
+  "btnVerPermisos": "Ver Permisos",
+  "lblDisponibles": "Disponibles (doble clic para agregar)",
+  "lblTitulo": "Gestion de Roles",
+  "lblFiltro": "Familia-Permisos",
+  "lblSeleccionados": "Componentes seleccionados",
+  "lblFamiliasExistentes": "Roles Existentes\r\n",
+  "lblNombre": "Nombre:",
+  "btnSalir": "Salir",
+  "btnAplicar": "Aplicar",
+  "btnEliminar": "Eliminar",
+  "btnModificar": "Modificar",
+  "btnCrear": "Crear",
+  "txtNombre": ""
+}

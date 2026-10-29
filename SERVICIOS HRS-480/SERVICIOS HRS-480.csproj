@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>SERVICIOS_HRS_480</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\Scripts\02_SQL_PN2_Reposicion.sql" LogicalName="PN2_Reposicion.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="QuestPDF" Version="2025.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DAL HRS-480\DAL HRS-480.csproj" />
+    <ProjectReference Include="..\ENTIDADES HRS-480\ENTIDADES HRS-480.csproj" />
+    <ProjectReference Include="..\SEGURIDAD HRS-480\SEGURIDAD HRS-480.csproj" />
+  </ItemGroup>
+
+</Project>

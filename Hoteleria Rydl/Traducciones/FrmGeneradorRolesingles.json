@@ -1,0 +1,17 @@
+{
+  "btnCancelar": "Cancel",
+  "lblMensaje": "View Mode",
+  "btnVerPermisos": "View Permissions",
+  "lblDisponibles": "Available (double-click to add)",
+  "lblTitulo": "Role Management",
+  "lblFiltro": "Family-Permissions",
+  "lblSeleccionados": "Selected Components",
+  "lblFamiliasExistentes": "Existing Roles",
+  "lblNombre": "Name:",
+  "btnSalir": "Exit",
+  "btnAplicar": "Apply",
+  "btnEliminar": "Delete",
+  "btnModificar": "Modify",
+  "btnCrear": "Create",
+  "txtNombre": ""
+}

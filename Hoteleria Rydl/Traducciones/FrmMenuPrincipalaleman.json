@@ -1,0 +1,22 @@
+{
+  "btnGenerarFamilia": "Familie erstellen",
+  "btnGenerarRoles": "Rolle erstellen",
+  "GenerarJson": "JsonErzeugen",
+  "btnCambiarIdioma": "Sprache ändern",
+  "btnReeLogin": "Erneut anmelden",
+  "btnCerrarSesion": "Abmelden",
+  "btnInsumos": "Materialnachschub",
+  "btnCheckin": "Check-in / Check-out",
+  "btnCambiarClave": "Passwort ändern",
+  "btnBitacora": "Ereignisprotokoll",
+  "btnUsuarios": "Benutzerverwaltung",
+  "lblBienvenida": "Willkommen | Rolle: ",
+  "lblHotel": "HOTEL RYDL",
+  "lblSubtitulo": "HOTELVERWALTUNGSSYSTEM",
+  "lblSecOperacion": "BETRIEB",
+  "lblSecAdmin": "VERWALTUNG",
+  "lblSecCuenta": "KONTO",
+  "lblAccesoTitulo": "Rezeption",
+  "lblAccesoTexto": "Check-in und Check-out der Gäste an einem einzigen Bildschirm: Zimmer, Gast und Zahlung.",
+  "btnAccesoRecepcion": "Rezeption öffnen  →"
+}

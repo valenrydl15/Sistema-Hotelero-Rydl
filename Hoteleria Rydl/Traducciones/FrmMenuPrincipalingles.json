@@ -1,0 +1,22 @@
+{
+  "btnGenerarFamilia": "Generate Family",
+  "btnGenerarRoles": "Generate Role",
+  "GenerarJson": "GenerateJson",
+  "btnCambiarIdioma": "Change Language",
+  "btnReeLogin": "Re-Login",
+  "btnCerrarSesion": "Log Out",
+  "btnInsumos": "Supplies Replenishment",
+  "btnCheckin": "Check-in / Check-out",
+  "btnCambiarClave": "Change Password",
+  "btnBitacora": "Event Log",
+  "btnUsuarios": "User Management",
+  "lblBienvenida": "Welcome | Role:",
+  "lblHotel": "RYDL HOTEL",
+  "lblSubtitulo": "HOTEL MANAGEMENT SYSTEM",
+  "lblSecOperacion": "OPERATIONS",
+  "lblSecAdmin": "ADMINISTRATION",
+  "lblSecCuenta": "ACCOUNT",
+  "lblAccesoTitulo": "Front desk",
+  "lblAccesoTexto": "Register guest check-in and check-out from a single screen: room, guest and payment.",
+  "btnAccesoRecepcion": "Open Front desk  →"
+}

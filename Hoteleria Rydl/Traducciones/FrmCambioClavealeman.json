@@ -1,0 +1,14 @@
+{
+  "label1": "Benutzeranmeldung",
+  "txtNombreUsuario": "",
+  "btnCancelar": "ABBRECHEN",
+  "btnAceptar": "AKZEPTIEREN",
+  "lblMsg": "",
+  "txtConfirma": "",
+  "lblConfirma": "Neues Passwort bestätigen",
+  "txtNueva": "",
+  "txtActual": "",
+  "lblNueva": "Neues Passwort",
+  "lblActual": "Aktuelles Passwort",
+  "lblTitulo": "Passwort ändern"
+}

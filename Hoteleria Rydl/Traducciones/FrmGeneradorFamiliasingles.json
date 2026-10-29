@@ -1,0 +1,17 @@
+{
+  "lblTitulo": "Family Management",
+  "lblFamiliasExistentes": "Existing Families",
+  "lblDisponibles": "Available (double-click to add)",
+  "lblSeleccionados": "Selected Components",
+  "lblNombre": "Name:",
+  "btnSalir": "Exit",
+  "btnAplicar": "Apply",
+  "btnEliminar": "Delete",
+  "btnModificar": "Modify",
+  "btnGenerar": "Generate",
+  "btnVerPermisos": "View Permissions",
+  "btnCancelar": "Cancel",
+  "txtNombre": "",
+  "lblFiltro": "Family-Permissions",
+  "lblMensaje": "View Mode",
+}

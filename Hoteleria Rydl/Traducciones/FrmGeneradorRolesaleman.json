@@ -1,0 +1,17 @@
+{
+  "btnCancelar": "Abbrechen",
+  "lblMensaje": "Ansichtsmodus",
+  "btnVerPermisos": "Berechtigungen anzeigen",
+  "lblDisponibles": "Verfügbar (Doppelklick zum Hinzufügen)",
+  "lblTitulo": "Rollenverwaltung",
+  "lblFiltro": "Familie-Berechtigungen",
+  "lblSeleccionados": "Ausgewählte Komponenten",
+  "lblFamiliasExistentes": "Vorhandene Rollen",
+  "lblNombre": "Name:",
+  "btnSalir": "Beenden",
+  "btnAplicar": "Anwenden",
+  "btnEliminar": "Löschen",
+  "btnModificar": "Ändern",
+  "btnCrear": "Erstellen",
+  "txtNombre": ""
+}

@@ -1,0 +1,14 @@
+{
+  "label1": "Login-Usuario",
+  "txtNombreUsuario": "",
+  "btnCancelar": "CANCELAR",
+  "btnAceptar": "ACEPTAR",
+  "lblMsg": "",
+  "txtConfirma": "",
+  "lblConfirma": "Confirmar nueva contraseña",
+  "txtNueva": "",
+  "txtActual": "",
+  "lblNueva": "Contraseña nueva",
+  "lblActual": "Contraseña actual",
+  "lblTitulo": "Cambiar Contraseña"
+}

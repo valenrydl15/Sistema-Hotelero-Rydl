@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Hoteleria_Rydl</RootNamespace>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Archivos de idioma (los lee Traductor desde la carpeta Traducciones junto al .exe) -->
+    <None Update="Traducciones\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Backup de la base: se copia junto al .exe (Program.cs lo restaura si la base no existe) -->
+    <None Include="..\Backups\*.bak" Link="Backups\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BLL\BLL HRS-480.csproj" />
+    <ProjectReference Include="..\ENTIDADES HRS-480\ENTIDADES HRS-480.csproj" />
+    <ProjectReference Include="..\SEGURIDAD HRS-480\SEGURIDAD HRS-480.csproj" />
+    <ProjectReference Include="..\SERVICIOS HRS-480\SERVICIOS HRS-480.csproj" />
+  </ItemGroup>
+
+</Project>
