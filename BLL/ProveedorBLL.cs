@@ -5,8 +5,9 @@ using SERVICIOS_HRS_480;
 namespace BLL_HRS_480
 {
     /// <summary>
-    /// Proveedores y CUN08 Registrar proveedor nuevo: si al proveedor elegido nunca se le pagó,
-    /// el Encargado de Compras registra sus datos bancarios (CUIT y CBU) antes de pagarle (CUN09).
+    /// CUN07 Pre-registrar proveedor (Encargado de Compras, extiende a CUN06): proveedor que nunca le vendió al hotel,
+    /// con sus datos básicos. CUN10 Registrar proveedor (Gerente de Compras, extiende a CUN09): se completan
+    /// CUIT, banco, CBU y titular con lo informado en su cotización, para poder pagarle.
     /// </summary>
     public class ProveedorBLL
     {
@@ -37,30 +38,65 @@ namespace BLL_HRS_480
             catch (Exception ex) { return ReposicionComun.ErrorTecnico<ProveedorBE>("Ver proveedor", ex); }
         }
 
-        /// <summary>CUN08: registra CUIT, CBU y banco del proveedor (y completa correo/dirección si se informan).</summary>
-        public ResultadoReposicion<ProveedorBE> RegistrarProveedorNuevo(ProveedorBE datos)
+        // ══════════════════════════════════════════════════════
+        // CUN07 Pre-registrar proveedor
+        // ══════════════════════════════════════════════════════
+        public ResultadoReposicion<ProveedorBE> PreRegistrarProveedor(ProveedorBE datos)
         {
-            const string OP = "Registrar proveedor nuevo";
+            const string OP = "Pre-registrar proveedor";
+            if (!ControlAcceso.PuedePreRegistrarProveedor())
+                return ReposicionComun.Denegado<ProveedorBE>(OP);
+            if (datos == null) return ReposicionComun.Rechazo<ProveedorBE>(OP, "Cargá los datos del proveedor.");
+
+            string empresa = (datos.Nombre ?? "").Trim(), contacto = (datos.Contacto ?? "").Trim(),
+                   telefono = (datos.Telefono ?? "").Trim(), direccion = (datos.Direccion ?? "").Trim(), email = (datos.Email ?? "").Trim();
+            if (empresa.Length == 0 || contacto.Length == 0 || telefono.Length == 0 || direccion.Length == 0)
+                return ReposicionComun.Rechazo<ProveedorBE>(OP, "Empresa, contacto, teléfono y dirección son obligatorios.");
+            if (empresa.Length > 150 || contacto.Length > 100 || telefono.Length > 30 || direccion.Length > 300 || email.Length > 200)
+                return ReposicionComun.Rechazo<ProveedorBE>(OP, "Alguno de los datos supera el largo permitido.");
+            if (telefono.Count(char.IsDigit) < 6)
+                return ReposicionComun.Rechazo<ProveedorBE>(OP, "El teléfono no es válido.");
+            if (email.Length > 0 && !email.Contains('@'))
+                return ReposicionComun.Rechazo<ProveedorBE>(OP, "El correo no es válido.");
+
+            try
+            {
+                bool dvOk = DigitoVerificador.Consistente(TABLAS);
+                ProveedorBE p;
+                using (var dal = new ReposicionDAL())
+                {
+                    if (dal.ExisteProveedorConNombre(empresa))
+                        return ReposicionComun.Rechazo<ProveedorBE>(OP, $"Ya existe un proveedor llamado {empresa}.");
+                    int id = dal.InsertarProveedorPreRegistrado(new ProveedorBE
+                    { Nombre = empresa, Contacto = contacto, Telefono = telefono, Direccion = direccion, Email = email });
+                    p = dal.ObtenerProveedorPorId(id)!;
+                }
+                BitacoraReposicion.Registrar(BitacoraReposicion.PROVEEDOR_PRE, 4, $"{empresa} (contacto {contacto}, tel. {telefono}).", "EXITOSO");
+                DigitoVerificador.RecalcularSi(dvOk, TABLAS);
+                return ResultadoReposicion<ProveedorBE>.Ok(p, $"Proveedor {empresa} pre-registrado: ya le podés pedir cotización.");
+            }
+            catch (Exception ex) { return ReposicionComun.ErrorTecnico<ProveedorBE>(OP, ex); }
+        }
+
+        // ══════════════════════════════════════════════════════
+        // CUN10 Registrar proveedor
+        // ══════════════════════════════════════════════════════
+        public ResultadoReposicion<ProveedorBE> RegistrarProveedor(int idProveedor, string cuit, string banco, string cbu, string titular)
+        {
+            const string OP = "Registrar proveedor";
             if (!ControlAcceso.PuedeRegistrarProveedor())
                 return ReposicionComun.Denegado<ProveedorBE>(OP);
-            if (datos == null || datos.IdProveedor <= 0)
-                return ReposicionComun.Rechazo<ProveedorBE>(OP, "Seleccioná el proveedor a registrar.");
 
-            string email = (datos.Email ?? "").Trim();
-            string banco = (datos.Banco ?? "").Trim();
-            if (!BancoServicio.ValidarCUIT(datos.CUIT))
-                return ReposicionComun.Rechazo<ProveedorBE>(OP,
-                    $"El CUIT debe tener 11 dígitos (con o sin guiones). Se ingresaron {BancoServicio.SoloDigitos(datos.CUIT).Length}.");
-            if (!BancoServicio.ValidarCBU(datos.CBU))
-                return ReposicionComun.Rechazo<ProveedorBE>(OP,
-                    $"El CBU debe tener 22 dígitos numéricos. Se ingresaron {BancoServicio.SoloDigitos(datos.CBU).Length}.");
-            string cuit = BancoServicio.SoloDigitos(datos.CUIT);
-            string cbu = BancoServicio.SoloDigitos(datos.CBU);
-            if (email.Length > 0 && (!email.Contains('@') || email.Length > 200))
-                return ReposicionComun.Rechazo<ProveedorBE>(OP, "El correo del proveedor no es válido.");
+            banco = (banco ?? "").Trim(); titular = (titular ?? "").Trim();
+            if (!BancoServicio.ValidarCUIT(cuit))
+                return ReposicionComun.Rechazo<ProveedorBE>(OP, $"El CUIT debe tener 11 dígitos (con o sin guiones). Se ingresaron {BancoServicio.SoloDigitos(cuit).Length}.");
+            if (!BancoServicio.ValidarCBU(cbu))
+                return ReposicionComun.Rechazo<ProveedorBE>(OP, $"El CBU debe tener 22 dígitos numéricos. Se ingresaron {BancoServicio.SoloDigitos(cbu).Length}.");
             if (banco.Length == 0) banco = BancoServicio.BancoDelCBU(cbu);
-            if (banco.Length > 100 || (datos.Direccion ?? "").Length > 300 || (datos.CondicionesPago ?? "").Length > 200)
-                return ReposicionComun.Rechazo<ProveedorBE>(OP, "Alguno de los datos supera el largo permitido.");
+            if (banco.Length == 0 || titular.Length == 0)
+                return ReposicionComun.Rechazo<ProveedorBE>(OP, "El banco y el titular de la cuenta son obligatorios.");
+            if (banco.Length > 100 || titular.Length > 150)
+                return ReposicionComun.Rechazo<ProveedorBE>(OP, "El banco o el titular superan el largo permitido.");
 
             try
             {
@@ -68,30 +104,18 @@ namespace BLL_HRS_480
                 ProveedorBE? p;
                 using (var dal = new ReposicionDAL())
                 {
-                    p = dal.ObtenerProveedorPorId(datos.IdProveedor);
+                    p = dal.ObtenerProveedorPorId(idProveedor);
                     if (p == null || !p.Activo)
                         return ReposicionComun.Rechazo<ProveedorBE>(OP, "El proveedor no existe o está inactivo.");
-                    if (!p.EsNuevo)
-                        return ReposicionComun.Rechazo<ProveedorBE>(OP,
-                            $"{p.Nombre} ya está registrado para pagos (CBU {p.CBU}): no hace falta registrarlo de nuevo.");
-                    if (email.Length == 0 && (string.IsNullOrWhiteSpace(p.Email) || !p.Email.Contains('@')))
-                        return ReposicionComun.Rechazo<ProveedorBE>(OP, "Cargá el correo del proveedor: la orden de compra se le envía por mail.");
-
-                    dal.RegistrarDatosPagoProveedor(new ProveedorBE
-                    {
-                        IdProveedor = p.IdProveedor,
-                        CUIT = cuit,
-                        CBU = cbu,
-                        Banco = banco,
-                        Email = email,
-                        Direccion = (datos.Direccion ?? "").Trim(),
-                        CondicionesPago = (datos.CondicionesPago ?? "").Trim()
-                    });
-                    p = dal.ObtenerProveedorPorId(datos.IdProveedor)!;
+                    if (!p.PreRegistrado)
+                        return ReposicionComun.Rechazo<ProveedorBE>(OP, $"{p.Nombre} ya está registrado: no hace falta registrarlo de nuevo.");
+                    if (!dal.RegistrarProveedor(new ProveedorBE
+                    { IdProveedor = idProveedor, CUIT = BancoServicio.SoloDigitos(cuit), Banco = banco, CBU = BancoServicio.SoloDigitos(cbu), Titular = titular }))
+                        return ReposicionComun.Rechazo<ProveedorBE>(OP, $"{p.Nombre} ya fue registrado por otro usuario.");
+                    p = dal.ObtenerProveedorPorId(idProveedor)!;
                 }
-
-                BitacoraReposicion.Registrar(BitacoraReposicion.PROVEEDOR_NUEVO, 3,
-                    $"{p.Nombre}: CUIT {p.CUIT}, CBU {p.CBU}{(banco.Length > 0 ? " (" + banco + ")" : "")}.", "EXITOSO");
+                BitacoraReposicion.Registrar(BitacoraReposicion.PROVEEDOR_REGISTRADO, 3,
+                    $"{p.Nombre}: CUIT {p.CUIT}, {p.Banco}, CBU {p.CBU}, titular {p.Titular}.", "EXITOSO");
                 DigitoVerificador.RecalcularSi(dvOk, TABLAS);
                 return ResultadoReposicion<ProveedorBE>.Ok(p, $"Proveedor {p.Nombre} registrado: ya se le puede pagar.");
             }

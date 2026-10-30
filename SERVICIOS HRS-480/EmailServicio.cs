@@ -6,7 +6,7 @@ using ENTIDADES_HRS_480;
 namespace SERVICIOS_HRS_480
 {
     /// <summary>
-    /// Envío de la orden de compra al proveedor (CUN08).
+    /// Envío de la solicitud de cotización (CUN06) y de la orden de compra pagada (CUN11) al proveedor.
     /// Configuración opcional: archivo "correo.txt" junto al .exe, con líneas clave=valor:
     ///     servidor=smtp.gmail.com
     ///     puerto=587
@@ -28,19 +28,61 @@ namespace SERVICIOS_HRS_480
 
         private static string Base => AppDomain.CurrentDomain.BaseDirectory;
 
-        public ResultadoEnvio EnviarOrdenAProveedor(OrdenCompraBE orden, string direccionEntrega)
+        /// <summary>CUN06: envía la solicitud de cotización al proveedor.</summary>
+        public ResultadoEnvio EnviarSolicitudCotizacion(SolicitudCotizacionBE s)
         {
-            string destino = orden.EmailProveedor?.Trim() ?? "";
+            var sb = new StringBuilder();
+            sb.AppendLine($"Estimado/a {s.NombreProveedor}:");
+            sb.AppendLine();
+            sb.AppendLine("Le solicitamos cotización de los siguientes insumos:");
+            sb.AppendLine();
+            sb.AppendLine($"  Nro de solicitud : {s.NroSolicitud}");
+            sb.AppendLine($"  Fecha            : {s.FechaSolicitud:dd/MM/yyyy}");
+            sb.AppendLine();
+            foreach (var i in s.Items)
+                sb.AppendLine($"  {i.Codigo}  {i.NombreInsumo,-30} cantidad: {i.Cantidad:0.##} {i.UnidadMedida}");
+            sb.AppendLine();
+            sb.AppendLine("Por favor indíquenos, para cada insumo, la cantidad disponible y el precio unitario,");
+            sb.AppendLine("junto con su CUIT, banco, CBU y titular de la cuenta para el pago.");
+            sb.AppendLine();
+            sb.AppendLine("Saludos cordiales,");
+            sb.AppendLine("Departamento de Compras - Hotelería Rydl");
+            return Enviar(s.EmailProveedor, s.NombreProveedor, $"Solicitud de cotización {s.NroSolicitud} - Hotelería Rydl", sb.ToString(), s.NroSolicitud);
+        }
+
+        /// <summary>CUN11: envía la orden de compra pagada al proveedor.</summary>
+        public ResultadoEnvio EnviarOrdenAProveedor(OrdenCompraBE o, string direccionEntrega)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"Estimado/a {o.NombreProveedor}:");
+            sb.AppendLine();
+            sb.AppendLine("Le enviamos la orden de compra, ya pagada:");
+            sb.AppendLine();
+            sb.AppendLine($"  Nro de orden       : {o.NroOrden}");
+            sb.AppendLine($"  Nro de operación   : {o.NroOperacionPago}" + (o.FechaPago.HasValue ? $" ({o.FechaPago:dd/MM/yyyy HH:mm})" : ""));
+            sb.AppendLine();
+            foreach (var i in o.Items)
+                sb.AppendLine($"  {i.Codigo}  {i.NombreInsumo,-30} {i.Cantidad,8:0.##} x $ {i.PrecioUnitario,10:N2} = $ {i.Subtotal,12:N2}");
+            sb.AppendLine($"  {"TOTAL",-41} $ {o.Total,35:N2}");
+            sb.AppendLine();
+            sb.AppendLine("Dirección de entrega:");
+            sb.AppendLine($"  {direccionEntrega}");
+            sb.AppendLine();
+            sb.AppendLine("Por favor entregue la mercadería junto con la factura correspondiente.");
+            sb.AppendLine();
+            sb.AppendLine("Saludos cordiales,");
+            sb.AppendLine("Gerencia de Compras - Hotelería Rydl");
+            return Enviar(o.EmailProveedor, o.NombreProveedor, $"Orden de compra {o.NroOrden} - Hotelería Rydl", sb.ToString(), o.NroOrden);
+        }
+
+        private ResultadoEnvio Enviar(string? destino, string nombre, string asunto, string cuerpo, string clave)
+        {
+            destino = destino?.Trim() ?? "";
             if (destino.Length == 0 || !destino.Contains('@'))
-                return new ResultadoEnvio { Exito = false, Mensaje = $"El proveedor {orden.NombreProveedor} no tiene un correo válido cargado." };
+                return new ResultadoEnvio { Exito = false, Mensaje = $"El proveedor {nombre} no tiene un correo válido cargado." };
 
-            string asunto = $"Orden de compra {orden.NroOrden} - Hotelería Rydl";
-            string cuerpo = ArmarCuerpo(orden, direccionEntrega);
             var cfg = LeerConfig();
-
-            if (cfg == null)
-                return Simular(orden, destino, asunto, cuerpo);
-
+            if (cfg == null) return Simular(clave, destino, asunto, cuerpo);
             try
             {
                 using var msg = new MailMessage
@@ -52,7 +94,6 @@ namespace SERVICIOS_HRS_480
                     SubjectEncoding = Encoding.UTF8
                 };
                 msg.To.Add(destino);
-
                 using var smtp = new SmtpClient(cfg["servidor"], int.TryParse(cfg.GetValueOrDefault("puerto", "587"), out int p) ? p : 587)
                 {
                     EnableSsl = !cfg.GetValueOrDefault("ssl", "true").Equals("false", StringComparison.OrdinalIgnoreCase),
@@ -60,7 +101,7 @@ namespace SERVICIOS_HRS_480
                     Timeout = 15000
                 };
                 smtp.Send(msg);
-                return new ResultadoEnvio { Exito = true, Mensaje = $"Orden enviada por correo a {destino}." };
+                return new ResultadoEnvio { Exito = true, Mensaje = $"Enviado por correo a {destino}." };
             }
             catch (Exception ex)
             {
@@ -68,51 +109,20 @@ namespace SERVICIOS_HRS_480
             }
         }
 
-        private static string ArmarCuerpo(OrdenCompraBE o, string direccionEntrega)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"Estimado/a {o.NombreProveedor}:");
-            sb.AppendLine();
-            sb.AppendLine("Le enviamos la siguiente orden de compra, ya abonada:");
-            sb.AppendLine();
-            sb.AppendLine($"  Nro de orden     : {o.NroOrden}");
-            sb.AppendLine($"  Fecha de emisión : {o.FechaEmision:dd/MM/yyyy HH:mm}");
-            sb.AppendLine($"  Insumo           : {o.NombreInsumo}");
-            sb.AppendLine($"  Cantidad         : {o.Cantidad:0.##}");
-            sb.AppendLine($"  Precio unitario  : $ {o.PrecioUnitario:N2}");
-            sb.AppendLine($"  Total            : $ {o.PrecioTotal:N2}");
-            if (!string.IsNullOrWhiteSpace(o.NroOperacionPago))
-                sb.AppendLine($"  Pago             : transferencia acreditada, comprobante {o.NroOperacionPago}" +
-                              (o.FechaPago.HasValue ? $" ({o.FechaPago:dd/MM/yyyy HH:mm})" : ""));
-            if (o.PlazoDias.HasValue)
-                sb.AppendLine($"  Plazo de entrega : {o.PlazoDias} días (hasta el {o.FechaEmision.AddDays(o.PlazoDias.Value):dd/MM/yyyy})");
-            sb.AppendLine();
-            sb.AppendLine("Dirección de entrega:");
-            sb.AppendLine($"  {direccionEntrega}");
-            sb.AppendLine();
-            sb.AppendLine("Por favor envíe los productos junto con la factura correspondiente (detallando");
-            sb.AppendLine("insumo, cantidad y precio). Al recibirlos, el depósito controla que coincidan con esta orden.");
-            sb.AppendLine();
-            sb.AppendLine("Saludos cordiales,");
-            sb.AppendLine("Departamento de Compras - Hotelería Rydl");
-            return sb.ToString();
-        }
-
-        private static ResultadoEnvio Simular(OrdenCompraBE orden, string destino, string asunto, string cuerpo)
+        private static ResultadoEnvio Simular(string clave, string destino, string asunto, string cuerpo)
         {
             try
             {
                 string carpeta = Path.Combine(Base, "Correos_Enviados");
                 Directory.CreateDirectory(carpeta);
-                string archivo = Path.Combine(carpeta, $"{orden.NroOrden}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                string archivo = Path.Combine(carpeta, $"{clave}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
                 File.WriteAllText(archivo,
-                    $"PARA: {destino}\r\nASUNTO: {asunto}\r\n(correo simulado: falta configurar correo.txt)\r\n\r\n{cuerpo}",
-                    Encoding.UTF8);
+                    $"PARA: {destino}\r\nASUNTO: {asunto}\r\n(correo simulado: falta configurar correo.txt)\r\n\r\n{cuerpo}", Encoding.UTF8);
                 return new ResultadoEnvio
                 {
                     Exito = true,
                     Simulado = true,
-                    Mensaje = $"Modo simulado (sin correo.txt): el correo para {destino} quedó guardado en Correos_Enviados\\{Path.GetFileName(archivo)}."
+                    Mensaje = $"Modo simulado: el correo para {destino} quedó guardado en Correos_Enviados\\{Path.GetFileName(archivo)}."
                 };
             }
             catch (Exception ex)

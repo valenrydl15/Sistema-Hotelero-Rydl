@@ -4,13 +4,58 @@ using System.Linq;
 
 namespace ENTIDADES_HRS_480
 {
-    /// <summary>Aviso interno (a un usuario) o registro de aviso a un proveedor.</summary>
+    // ══════════════════════════════════════════════════════════════════════
+    // Catálogos
+    // ══════════════════════════════════════════════════════════════════════
+    public class InsumoBE
+    {
+        public int IdInsumo { get; set; }
+        public string Codigo => $"INS-{IdInsumo:D3}";
+        public string Nombre { get; set; } = "";
+        public string Descripcion { get; set; } = "";
+        public string Categoria { get; set; } = "General";
+        public string UnidadMedida { get; set; } = "";
+        public decimal StockActual { get; set; }
+        public decimal StockMinimo { get; set; }
+        public bool Activo { get; set; }
+        public string Estado { get; set; } = "";   // 'Critico' o 'Normal' (columna calculada)
+        /// <summary>Faltante = stock en o por debajo del mínimo.</summary>
+        public bool Faltante => StockActual <= StockMinimo;
+        /// <summary>Cantidad sugerida para reponer: llevar el stock al doble del mínimo.</summary>
+        public decimal CantidadSugerida => Math.Max(1, StockMinimo * 2 - StockActual);
+        public override string ToString() => $"{Codigo} {Nombre}";
+    }
+
+    public class ProveedorBE
+    {
+        public const string PRE_REGISTRADO = "Pre-registrado";
+        public const string REGISTRADO = "Registrado";
+
+        public int IdProveedor { get; set; }
+        public string Nombre { get; set; } = "";       // empresa
+        public string Contacto { get; set; } = "";
+        public string Telefono { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Direccion { get; set; } = "";
+        public string CondicionesPago { get; set; } = "";
+        public bool Activo { get; set; } = true;
+        public string Estado { get; set; } = PRE_REGISTRADO;
+        // Datos para pagarle (CUN10 Registrar proveedor)
+        public string CUIT { get; set; } = "";
+        public string Banco { get; set; } = "";
+        public string CBU { get; set; } = "";
+        public string Titular { get; set; } = "";
+        public DateTime? FechaRegistroPago { get; set; }
+        public bool PreRegistrado => Estado != REGISTRADO;
+        public override string ToString() => PreRegistrado ? $"{Nombre} (pre-registrado)" : Nombre;
+    }
+
+    /// <summary>Aviso interno (a un usuario) o registro de envío a un proveedor.</summary>
     public class NotificacionBE
     {
         public int IdNotificacion { get; set; }
         public int? IdUsuarioDestino { get; set; }
         public int? IdProveedorDestino { get; set; }
-        public int? IdSolicitud { get; set; }
         public int? IdOrden { get; set; }
         public string Tipo { get; set; } = "";
         public string Mensaje { get; set; } = "";
@@ -18,7 +63,7 @@ namespace ENTIDADES_HRS_480
         public bool Leida { get; set; }
     }
 
-    /// <summary>Ingreso de mercadería al stock (trazabilidad de cada recepción).</summary>
+    /// <summary>Ingreso de mercadería al stock (cantidad anterior, recibida y disponible).</summary>
     public class MovimientoStockBE
     {
         public int IdMovimiento { get; set; }
@@ -30,128 +75,152 @@ namespace ENTIDADES_HRS_480
         public decimal CantidadMovimiento { get; set; }
         public decimal CantidadNueva { get; set; }
         public DateTime FechaMovimiento { get; set; }
-        public int? IdUsuarioRegistro { get; set; }
+    }
+
+    /// <summary>Línea de un documento del proceso (solicitud, cotización, orden, recepción).</summary>
+    public class ItemInsumoBE
+    {
+        public int IdDetalle { get; set; }
+        public int IdInsumo { get; set; }
+        public string Codigo => $"INS-{IdInsumo:D3}";
+        public string NombreInsumo { get; set; } = "";
+        public string UnidadMedida { get; set; } = "";
+        public decimal Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+        public decimal Subtotal => Math.Round(Cantidad * PrecioUnitario, 2);
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // CUN06 Realizar cotización
+    // CUN06 Generar solicitud de cotización
     // ══════════════════════════════════════════════════════════════════════
-
-    /// <summary>Precio y plazo que informó un proveedor para la cotización.</summary>
-    public class CotizacionDetalleBE
+    public class SolicitudCotizacionBE
     {
-        public int IdDetalleCotizacion { get; set; }
-        public int IdCotizacion { get; set; }
+        public int IdSolicitudCotizacion { get; set; }
+        public string NroSolicitud { get; set; } = "";
+        public DateTime FechaSolicitud { get; set; }
         public int IdProveedor { get; set; }
         public string NombreProveedor { get; set; } = "";
-        public decimal PrecioUnitario { get; set; }
-        public int PlazoDias { get; set; }
-        /// <summary>Lo calcula quien arma la cotización (Cantidad × PrecioUnitario).</summary>
-        public decimal Subtotal { get; set; }
-        /// <summary>La oferta más conveniente: menor total y, si empatan, menor plazo.</summary>
-        public bool MasConveniente { get; set; }
+        public string EmailProveedor { get; set; } = "";
+        public string Estado { get; set; } = "Enviada";   // 'Enviada','Cotizada'
+        public DateTime? FechaEnvio { get; set; }
+        public List<ItemInsumoBE> Items { get; set; } = new List<ItemInsumoBE>();
     }
 
-    /// <summary>Un insumo y una cantidad cotizados con varios proveedores.</summary>
+    // ══════════════════════════════════════════════════════════════════════
+    // CUN08 Generar pre-orden de compra (cotización recibida y comparación)
+    // ══════════════════════════════════════════════════════════════════════
     public class CotizacionBE
     {
         public int IdCotizacion { get; set; }
-        public string NroCotizacion => $"CT-{IdCotizacion:D5}";
-        public int IdInsumo { get; set; }
-        public string NombreInsumo { get; set; } = "";
-        public string UnidadMedida { get; set; } = "";
-        public decimal Cantidad { get; set; }
-        public DateTime FechaCotizacion { get; set; }
-        public string Estado { get; set; } = "Abierta";   // 'Abierta','Con pre-orden','Anulada'
-        public string Observaciones { get; set; } = "";
-        public int? IdUsuarioRegistro { get; set; }
-        public string NombreUsuario { get; set; } = "";
-        public List<CotizacionDetalleBE> Detalles { get; set; } = new List<CotizacionDetalleBE>();
-
-        public CotizacionDetalleBE? MejorOferta =>
-            Detalles.OrderBy(d => d.PrecioUnitario).ThenBy(d => d.PlazoDias).FirstOrDefault();
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // CUN07 Generar pre-orden de compra
-    // ══════════════════════════════════════════════════════════════════════
-    public class PreOrdenCompraBE
-    {
-        public int IdPreOrden { get; set; }
-        public string NroPreOrden { get; set; } = "";
-        public int IdCotizacion { get; set; }
-        public int IdDetalleCotizacion { get; set; }
-        public int IdInsumo { get; set; }
-        public string NombreInsumo { get; set; } = "";
-        public string UnidadMedida { get; set; } = "";
+        public int IdSolicitudCotizacion { get; set; }
+        public string NroSolicitud { get; set; } = "";
         public int IdProveedor { get; set; }
         public string NombreProveedor { get; set; } = "";
-        public decimal Cantidad { get; set; }
+        public DateTime FechaCotizacion { get; set; }
+        public string CUIT { get; set; } = "";
+        public string Banco { get; set; } = "";
+        public string CBU { get; set; } = "";
+        public string Titular { get; set; } = "";
+        public string Estado { get; set; } = "Recibida";  // 'Recibida','Procesada'
+        /// <summary>Cantidad = cantidad disponible que informa el proveedor.</summary>
+        public List<ItemInsumoBE> Items { get; set; } = new List<ItemInsumoBE>();
+    }
+
+    /// <summary>Una oferta (proveedor + precio) para un insumo, en la comparación de cotizaciones.</summary>
+    public class OfertaBE
+    {
+        public int IdCotizacion { get; set; }
+        public int IdProveedor { get; set; }
+        public string NombreProveedor { get; set; } = "";
+        public int IdInsumo { get; set; }
+        public string NombreInsumo { get; set; } = "";
+        public string UnidadMedida { get; set; } = "";
+        public decimal CantidadSolicitada { get; set; }
+        public decimal CantidadDisponible { get; set; }
         public decimal PrecioUnitario { get; set; }
-        public decimal PrecioTotal { get; set; }
-        public int PlazoDias { get; set; }
-        public string Prioridad { get; set; } = "Normal";
-        public DateTime FechaPreOrden { get; set; }
-        public string Estado { get; set; } = "Pendiente";   // 'Pendiente','Comprada'
-        public string Observaciones { get; set; } = "";
-        public int? IdUsuarioRegistro { get; set; }
-        public string NombreUsuario { get; set; } = "";
-        /// <summary>El proveedor nunca cobró: hay que registrarlo antes de pagar (CUN08).</summary>
-        public bool ProveedorNuevo { get; set; }
+        /// <summary>Lo que se pediría: lo solicitado, sin superar lo disponible.</summary>
+        public decimal CantidadAPedir => Math.Min(CantidadSolicitada, CantidadDisponible);
+        public decimal Subtotal => Math.Round(CantidadAPedir * PrecioUnitario, 2);
+        /// <summary>La oferta más barata del insumo (en empate, la de más cantidad disponible).</summary>
+        public bool MasConveniente { get; set; }
+        public bool Elegida { get; set; }
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // CUN09 Realizar compra de insumos (pago bancario)
+    // Orden de compra: Pre-orden → Generada → Pagada → Recibida (o Cancelada)
     // ══════════════════════════════════════════════════════════════════════
-    public class PagoProveedorBE
+    public static class EstadoOrden
     {
-        public int IdPagoProveedor { get; set; }
-        public int IdPreOrden { get; set; }
+        public const string PRE_ORDEN = "Pre-orden";
+        public const string GENERADA = "Generada";
+        public const string CANCELADA = "Cancelada";
+        public const string PAGADA = "Pagada";
+        public const string RECIBIDA = "Recibida";
+    }
+
+    public class OrdenCompraBE
+    {
+        public int IdOrden { get; set; }
+        public string NroOrden { get; set; } = "";
+        public DateTime FechaPreOrden { get; set; }
+        public DateTime? FechaGeneracion { get; set; }
         public int IdProveedor { get; set; }
+        public string NombreProveedor { get; set; } = "";
+        public string EmailProveedor { get; set; } = "";
+        public string EstadoProveedor { get; set; } = "";
+        public int IdCotizacion { get; set; }
+        public decimal Total { get; set; }
+        public string Estado { get; set; } = EstadoOrden.PRE_ORDEN;
+        public string MotivoCancelacion { get; set; } = "";
+        public string DireccionEntrega { get; set; } = "";
+        public DateTime? FechaEnvio { get; set; }
+        public string NroOperacionPago { get; set; } = "";
+        public DateTime? FechaPago { get; set; }
+        public List<ItemInsumoBE> Items { get; set; } = new List<ItemInsumoBE>();
+        public string ResumenItems => string.Join(", ", Items.Select(i => $"{i.NombreInsumo} x{i.Cantidad:0.##}"));
+        public override string ToString() => $"{NroOrden} | {NombreProveedor} | {Estado}";
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CUN11 Pagar orden de compra
+    // ══════════════════════════════════════════════════════════════════════
+    public class PagoOrdenCompraBE
+    {
+        public int IdPago { get; set; }
+        public int IdOrden { get; set; }
         public decimal Monto { get; set; }
-        public string MedioPago { get; set; } = "Transferencia bancaria";
-        public string CBUDestino { get; set; } = "";
+        public string Banco { get; set; } = "";
+        public string CBU { get; set; } = "";
+        public string Titular { get; set; } = "";
         public string NroOperacion { get; set; } = "";
-        public DateTime FechaPago { get; set; }
         public string Estado { get; set; } = "";   // 'Aprobado','Rechazado'
+        public DateTime FechaPago { get; set; }
         public string DetalleBanco { get; set; } = "";
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // CUN10 Registrar insumos recibidos (con la factura del proveedor)
+    // CUN12 Registrar recepción de insumos
     // ══════════════════════════════════════════════════════════════════════
-    public class FacturaProveedorBE
+    public class ItemRecepcionBE
     {
-        public int IdFacturaProveedor { get; set; }
-        public int IdOrden { get; set; }
-        public int IdProveedor { get; set; }
-        public string NroFactura { get; set; } = "";
-        public DateTime FechaFactura { get; set; }
         public int IdInsumo { get; set; }
-        public decimal CantidadFacturada { get; set; }
-        public decimal PrecioUnitario { get; set; }
-        public decimal Total => CantidadFacturada * PrecioUnitario;
-    }
-
-    /// <summary>Lo que el Encargado de Depósito carga al recibir: la factura y lo que realmente llegó.</summary>
-    public class RecepcionConFacturaBE
-    {
-        public int IdOrden { get; set; }
-        public string NroFactura { get; set; } = "";
-        public DateTime FechaFactura { get; set; }
-        public decimal CantidadFacturada { get; set; }
-        public decimal PrecioUnitarioFacturado { get; set; }
+        public string NombreInsumo { get; set; } = "";
+        public decimal CantidadPedida { get; set; }
         public decimal CantidadRecibida { get; set; }
-        public string Observaciones { get; set; } = "";
     }
 
-    /// <summary>Resultado de comparar orden, factura y mercadería recibida.</summary>
-    public class ControlRecepcionBE
+    public class RecepcionInsumoBE
     {
-        public RecepcionInsumoBE Recepcion { get; set; } = new RecepcionInsumoBE();
-        public MovimientoStockBE Movimiento { get; set; } = new MovimientoStockBE();
-        public List<string> Diferencias { get; set; } = new List<string>();
-        public bool Coincide => Diferencias.Count == 0;
+        public int IdRecepcion { get; set; }
+        public int IdOrden { get; set; }
+        public string NroOrden { get; set; } = "";
+        public string NroFactura { get; set; } = "";
+        public decimal TotalFactura { get; set; }
+        public DateTime FechaRecepcion { get; set; }
+        public string Estado { get; set; } = "Completa";   // 'Completa','Con diferencia'
+        public string Observaciones { get; set; } = "";
+        public List<ItemRecepcionBE> Items { get; set; } = new List<ItemRecepcionBE>();
+        public List<MovimientoStockBE> Movimientos { get; set; } = new List<MovimientoStockBE>();
     }
 
     /// <summary>Resultado de las operaciones de reposición (la BLL no lanza excepciones a la GUI).</summary>

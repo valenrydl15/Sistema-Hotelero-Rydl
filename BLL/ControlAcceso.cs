@@ -26,7 +26,9 @@ namespace BLL_HRS_480
 
         // ── PN2: Reposición de insumos ────────────────────────────────────────
         public const string ROL_COMPRAS = "Encargado de Compras";
-        public const string ROL_ALMACEN = "Encargado de Almacén";   // Encargado de Depósito
+        public const string ROL_GERENTE = "Gerente de Compras";
+        public const string ROL_DEPOSITO = "Encargado de Depósito";
+        private const string ROL_DEPOSITO_ANTERIOR = "Encargado de Almacén";   // nombre viejo del rol (bases sin migrar)
 
         private static bool RolEn(params string[] roles)
         {
@@ -35,21 +37,23 @@ namespace BLL_HRS_480
                 if (actual == Normalizar(r)) return true;
             return false;
         }
+        private static bool EsDeposito() => RolEn(ROL_DEPOSITO, ROL_DEPOSITO_ANTERIOR);
 
-        /// <summary>Ver stock, órdenes y avisos: Administrador, Compras y Depósito (Almacén).</summary>
-        public static bool PuedeAccederReposicion() => RolEn(ROL_ADMIN, ROL_COMPRAS, ROL_ALMACEN);
-        /// <summary>CUN06 Realizar cotización: Encargado de Depósito.</summary>
-        public static bool PuedeRealizarCotizacion() => RolEn(ROL_ADMIN, ROL_ALMACEN);
-        /// <summary>CUN07 Generar pre-orden de compra: Encargado de Depósito.</summary>
-        public static bool PuedeGenerarPreOrden() => RolEn(ROL_ADMIN, ROL_ALMACEN);
-        /// <summary>CUN08 Registrar proveedor nuevo: Encargado de Compras.</summary>
-        public static bool PuedeRegistrarProveedor() => RolEn(ROL_ADMIN, ROL_COMPRAS);
-        /// <summary>CUN09 Realizar compra de insumos (pago + orden): Encargado de Compras.</summary>
-        public static bool PuedeRealizarCompra() => RolEn(ROL_ADMIN, ROL_COMPRAS);
-        /// <summary>CUN10 Registrar insumos recibidos: Encargado de Depósito.</summary>
-        public static bool PuedeRegistrarRecepcionInsumos() => RolEn(ROL_ADMIN, ROL_ALMACEN);
-        /// <summary>Tareas del área de Compras (reenviar una orden, ver pagos).</summary>
-        public static bool PuedeGestionarCompras() => RolEn(ROL_ADMIN, ROL_COMPRAS);
+        /// <summary>Entrar a Reposición (órdenes y avisos): Administrador, Compras, Gerente y Depósito.</summary>
+        public static bool PuedeAccederReposicion() => RolEn(ROL_ADMIN, ROL_COMPRAS, ROL_GERENTE) || EsDeposito();
+        /// <summary>Ver stock e insumos faltantes.</summary>
+        public static bool PuedeConsultarStock() => RolEn(ROL_ADMIN, ROL_COMPRAS, ROL_GERENTE) || EsDeposito();
+        /// <summary>CUN06 Generar solicitud de cotización y CUN07 Pre-registrar proveedor: Encargado de Compras.</summary>
+        public static bool PuedeGenerarSolicitudCotizacion() => RolEn(ROL_ADMIN, ROL_COMPRAS);
+        public static bool PuedePreRegistrarProveedor() => RolEn(ROL_ADMIN, ROL_COMPRAS);
+        /// <summary>CUN08 Generar pre-orden de compra (incluye registrar las cotizaciones recibidas): Encargado de Compras.</summary>
+        public static bool PuedeGenerarPreOrden() => RolEn(ROL_ADMIN, ROL_COMPRAS);
+        /// <summary>CUN09 Generar orden de compra, CUN10 Registrar proveedor y CUN11 Pagar orden: Gerente de Compras.</summary>
+        public static bool PuedeGenerarOrden() => RolEn(ROL_ADMIN, ROL_GERENTE);
+        public static bool PuedeRegistrarProveedor() => RolEn(ROL_ADMIN, ROL_GERENTE);
+        public static bool PuedePagarOrden() => RolEn(ROL_ADMIN, ROL_GERENTE);
+        /// <summary>CUN12 Registrar recepción de insumos: Encargado de Depósito.</summary>
+        public static bool PuedeRegistrarRecepcionInsumos() => RolEn(ROL_ADMIN) || EsDeposito();
 
         private static string Normalizar(string s)
         {

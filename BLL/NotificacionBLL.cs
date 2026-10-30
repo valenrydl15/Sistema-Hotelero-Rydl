@@ -5,62 +5,25 @@ namespace BLL_HRS_480
 {
     /// <summary>
     /// Avisos internos del proceso. Son "mejor esfuerzo": si fallan no se deshace la operación de negocio
-    /// (la pre-orden o la recepción ya quedaron registradas); el fallo queda en bitácora.
+    /// (la operación ya quedó registrada); el fallo queda en bitácora.
     /// </summary>
     public class NotificacionBLL
     {
-        /// <summary>Destinatarios = usuarios activos del rol; si no hay ninguno, los Administradores.</summary>
-        private static List<Usuario> Destinatarios(ReposicionDAL dal, string rol)
-        {
-            var lista = dal.ObtenerUsuariosPorRol(rol);
-            return lista.Count > 0 ? lista : dal.ObtenerUsuariosPorRol(ControlAcceso.ROL_ADMIN);
-        }
-
-        /// <summary>CUN07: avisa a Compras que hay una pre-orden lista para pagar.</summary>
-        public int NotificarPreOrden(int idPreOrden)
+        /// <summary>Avisa a todos los usuarios activos de un rol (si no hay ninguno, a los Administradores).</summary>
+        public int NotificarRol(string rol, string tipo, string mensaje, int? idOrden = null)
         {
             try
             {
                 using var dal = new ReposicionDAL();
-                var po = dal.ObtenerPreOrdenPorId(idPreOrden);
-                if (po == null) return 0;
-
-                string msg = $"Nueva pre-orden {po.NroPreOrden}: {po.Cantidad:0.##} {po.UnidadMedida} de {po.NombreInsumo} " +
-                             $"a {po.NombreProveedor} por $ {po.PrecioTotal:N2} (prioridad {po.Prioridad})." +
-                             (po.ProveedorNuevo ? " Es un proveedor nuevo: hay que registrarlo antes de pagar." : "");
-                int n = 0;
-                foreach (var u in Destinatarios(dal, ControlAcceso.ROL_COMPRAS))
-                {
-                    dal.InsertarNotificacion(new NotificacionBE
-                    { IdUsuarioDestino = u.IdUsuario, Tipo = "Pre-orden para pagar", Mensaje = msg });
-                    n++;
-                }
-                return n;
+                var destinatarios = dal.ObtenerUsuariosPorRol(rol);
+                if (destinatarios.Count == 0 && rol == ControlAcceso.ROL_DEPOSITO)
+                    destinatarios = dal.ObtenerUsuariosPorRol("Encargado de Almacén");   // nombre viejo del rol
+                if (destinatarios.Count == 0) destinatarios = dal.ObtenerUsuariosPorRol(ControlAcceso.ROL_ADMIN);
+                foreach (var u in destinatarios)
+                    dal.InsertarNotificacion(new NotificacionBE { IdUsuarioDestino = u.IdUsuario, IdOrden = idOrden, Tipo = tipo, Mensaje = mensaje });
+                return destinatarios.Count;
             }
-            catch (Exception ex) { return Falla("NotificarPreOrden", ex); }
-        }
-
-        /// <summary>CUN10 (no coincide): avisa a Compras para que lo reclame al proveedor.</summary>
-        public int NotificarDiferenciaRecepcion(int idOrden, string diferencias)
-        {
-            try
-            {
-                using var dal = new ReposicionDAL();
-                var o = dal.ObtenerOrdenPorId(idOrden);
-                if (o == null) return 0;
-
-                string msg = $"Los insumos recibidos de la orden {o.NroOrden} ({o.NombreInsumo}, proveedor {o.NombreProveedor}) " +
-                             $"no coinciden: {diferencias}. Reclamalo al proveedor.";
-                int n = 0;
-                foreach (var u in Destinatarios(dal, ControlAcceso.ROL_COMPRAS))
-                {
-                    dal.InsertarNotificacion(new NotificacionBE
-                    { IdUsuarioDestino = u.IdUsuario, IdOrden = idOrden, Tipo = "Recepción con diferencia", Mensaje = msg });
-                    n++;
-                }
-                return n;
-            }
-            catch (Exception ex) { return Falla("NotificarDiferenciaRecepcion", ex); }
+            catch (Exception ex) { return Falla("Notificar " + rol, ex); }
         }
 
         // ── Bandeja del usuario actual ───────────────────────────────────────

@@ -18,9 +18,9 @@ Hecho en **C# / Windows Forms (.NET 8)** sobre **SQL Server**, con arquitectura 
 - **Reportes PDF:** factura de estadía, y reporte de todas las facturas generadas (con resumen por medio de pago).
 
 **PN2 — Gestión de reposición de insumos**
-- CUN06 Realizar cotización (varios proveedores, el sistema marca la oferta más conveniente) · CUN07 Generar pre-orden de compra · CUN08 Registrar proveedor nuevo (CUIT y CBU; extiende a CUN09) · CUN09 Realizar compra de insumos (pago por transferencia bancaria y orden de compra) · CUN10 Registrar insumos recibidos (contra la factura del proveedor).
-- Control de stock con alerta de insumos críticos, pago al proveedor antes de emitir la orden, control orden/factura/mercadería y avisos entre áreas.
-- Roles: *Encargado de Almacén / Depósito* (stock, cotización, pre-orden y recepción), *Encargado de Compras* (proveedor nuevo y compra con pago) y *Administrador* (todo).
+- CUN06 Generar solicitud de cotización (con los insumos faltantes) · CUN07 Pre-registrar proveedor («extend» de CUN06) · CUN08 Generar pre-orden de compra (registra y compara las cotizaciones) · CUN09 Generar orden de compra (aprobar o cancelar la pre-orden) · CUN10 Registrar proveedor («extend» de CUN09: CUIT, banco, CBU y titular) · CUN11 Pagar orden de compra («include» de CUN09: transferencia bancaria y envío al proveedor) · CUN12 Registrar recepción de insumos (contra la factura; actualiza el stock).
+- Estados de la orden: Pre-orden → Generada → Pagada → Recibida (o Cancelada). Avisos entre áreas y control de diferencias orden/factura/mercadería.
+- Roles: *Encargado de Compras* (CUN06, CUN07, CUN08), *Gerente de Compras* (CUN09, CUN10, CUN11), *Encargado de Depósito* (CUN12) y *Administrador* (todo).
 - **Reportes PDF:** orden de compra y listado de órdenes de compra.
 
 ## Arquitectura

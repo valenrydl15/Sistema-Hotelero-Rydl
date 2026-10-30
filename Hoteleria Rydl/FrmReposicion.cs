@@ -12,14 +12,16 @@ using SEGURIDAD_HRS_480;
 namespace GUI_HRS_480
 {
     /// <summary>
-    /// Pantalla del proceso PN2 "Gestión de reposición de insumos" (la "GUI" de los DSS CUN06 a CUN10).
-    /// Una sección por caso de uso: cotización (CUN06), pre-orden (CUN07), compra con registro de proveedor
-    /// nuevo y pago (CUN08/CUN09) y recepción con factura (CUN10); más órdenes y avisos. Solo habla con las BLL.
+    /// Pantalla del PN2 "Gestión de reposición de insumos" (la "GUI" de los DSS CUN06 a CUN12).
+    ///   Encargado de Compras : Faltantes y solicitud (CUN06 + CUN07) · Cotizaciones y Pre-órdenes (CUN08)
+    ///   Gerente de Compras   : Gerencia (CUN09 + CUN10 + CUN11)
+    ///   Encargado de Depósito: Recepción (CUN12)
+    /// Todos: Órdenes (consulta y PDF) y Avisos. Solo habla con las BLL, que vuelven a validar el rol.
     /// </summary>
     public class FrmReposicion : Form
     {
         private readonly StockBLL _stock = new StockBLL();
-        private readonly CotizacionBLL _cotizaciones = new CotizacionBLL();
+        private readonly SolicitudCotizacionBLL _solicitudes = new SolicitudCotizacionBLL();
         private readonly PreOrdenBLL _preordenes = new PreOrdenBLL();
         private readonly ProveedorBLL _proveedores = new ProveedorBLL();
         private readonly OrdenCompraBLL _ordenes = new OrdenCompraBLL();
@@ -27,40 +29,44 @@ namespace GUI_HRS_480
         private readonly NotificacionBLL _avisos = new NotificacionBLL();
         private readonly ReporteBLL _reportes = new ReporteBLL();
 
-        // Estructura
         private Panel pnlHeader, pnlSecciones;
         private Label lblTitulo, lblUsuario, lblMensaje;
         private readonly Dictionary<string, Panel> _paneles = new Dictionary<string, Panel>();
         private readonly Dictionary<string, Button> _botones = new Dictionary<string, Button>();
 
-        // CUN06 Stock + cotización
-        private DataGridView dgvStock, dgvOfertas;
-        private CheckBox chkCriticos;
-        private Label lblInsumoSel, lblStockInfo, lblUltimoPrecio, lblMejorOferta, lblPermisoCotizar;
-        private NumericUpDown numCantCotizar;
-        private TextBox txtObsCotizacion;
+        // CUN06 / CUN07
+        private DataGridView dgvFaltantes;
+        private CheckBox chkTodoElStock;
+        private ComboBox cmbProveedor;
+        private Label lblEstadoProv, lblResumenSolicitud;
+        private TextBox txtPreEmpresa, txtPreContacto, txtPreTelefono, txtPreEmail, txtPreDireccion;
+        private Button btnPreRegistrar, btnGenerarSolicitud;
+        private Panel pnlSolicitud;
+
+        // CUN08 (cotizaciones recibidas)
+        private DataGridView dgvSolicitudes, dgvItemsCotizacion;
+        private Label lblSolicitudSel;
+        private TextBox txtCotCuit, txtCotBanco, txtCotCbu, txtCotTitular;
         private Button btnRegistrarCotizacion;
 
-        // CUN07 Pre-orden
-        private DataGridView dgvCotizaciones, dgvComparacion;
-        private Label lblDetallePreOrden;
-        private ComboBox cmbPrioridad;
-        private TextBox txtObsPreOrden;
-        private Button btnGenerarPreOrden, btnAnularCotizacion;
+        // CUN08 (comparación y pre-órdenes)
+        private DataGridView dgvOfertas;
+        private Label lblResumenPreOrden;
+        private Button btnGenerarPreOrdenes;
+        private bool _ajustandoOfertas;
 
-        // CUN08 / CUN09 Comprar
-        private DataGridView dgvPreOrdenes;
-        private Label lblDetalleCompra, lblEstadoProveedor, lblTotalCompra;
+        // CUN09 / CUN10 / CUN11
+        private DataGridView dgvBandeja;
+        private Label lblDetalleOrden, lblEstadoProvOrden;
+        private TextBox txtMotivoCancelacion, txtRegCuit, txtRegBanco, txtRegCbu, txtRegTitular, txtDireccion;
+        private Button btnGenerarOrden, btnCancelarPreOrden, btnRegistrarProveedor, btnPagar;
         private Panel pnlRegistroProveedor;
-        private TextBox txtCuit, txtCbu, txtBanco, txtEmailProv, txtDireccion;
-        private Button btnRegistrarProveedor, btnPagar;
 
-        // CUN10 Recepción
-        private DataGridView dgvARecibir;
-        private Label lblDetalleRecepcion, lblControl;
+        // CUN12
+        private DataGridView dgvARecibir, dgvItemsRecepcion;
+        private Label lblDetalleRecepcion;
         private TextBox txtNroFactura, txtObsRecepcion;
-        private DateTimePicker dtpFechaFactura;
-        private NumericUpDown numCantFacturada, numPrecioFacturado, numRecibida;
+        private NumericUpDown numTotalFactura;
         private Button btnRegistrarRecepcion;
 
         // Órdenes y avisos
@@ -73,9 +79,10 @@ namespace GUI_HRS_480
             Construir();
             Load += (s, e) =>
             {
-                lblUsuario.Text = $"{SesionManager.Instancia.UsuarioActual?.Nombre} {SesionManager.Instancia.UsuarioActual?.Apellido}  ·  {SesionManager.Instancia.UsuarioActual?.NombreRol}";
+                var u = SesionManager.Instancia.UsuarioActual;
+                lblUsuario.Text = $"{u?.Nombre} {u?.Apellido}  ·  {u?.NombreRol}";
                 AplicarPermisos();
-                IrA("cotizar");
+                IrA(_botones.First(b => b.Value.Visible).Key);
             };
         }
 
@@ -93,11 +100,7 @@ namespace GUI_HRS_480
             Font = Tema.Fuente(9.5f);
 
             pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Tema.Marino };
-            lblTitulo = new Label
-            {
-                Text = "Reposición de insumos", ForeColor = Color.White, AutoSize = true,
-                Font = new Font("Georgia", 20f, FontStyle.Regular), Location = new Point(24, 16)
-            };
+            lblTitulo = new Label { Text = "Reposición de insumos", ForeColor = Color.White, AutoSize = true, Font = new Font("Georgia", 20f), Location = new Point(24, 16) };
             lblUsuario = new Label
             {
                 ForeColor = Color.FromArgb(205, 214, 230), AutoSize = false, TextAlign = ContentAlignment.MiddleRight,
@@ -108,33 +111,30 @@ namespace GUI_HRS_480
             pnlHeader.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 3, BackColor = Tema.Dorado });
 
             pnlSecciones = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Tema.Fondo };
-
             lblMensaje = new Label
             {
-                Dock = DockStyle.Bottom, Height = 34, TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(24, 0, 0, 0), Font = Tema.Fuente(9.5f, FontStyle.Bold),
-                ForeColor = Tema.TextoSuave, BackColor = Color.White
+                Dock = DockStyle.Bottom, Height = 34, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(24, 0, 0, 0),
+                Font = Tema.Fuente(9.5f, FontStyle.Bold), ForeColor = Tema.TextoSuave, BackColor = Color.White
             };
 
             var def = new[]
             {
-                ("cotizar", "Stock y cotización"), ("preorden", "Pre-orden"), ("comprar", "Comprar"),
-                ("recepcion", "Recepción"), ("ordenes", "Órdenes"), ("avisos", "Avisos")
+                ("faltantes", "Faltantes y solicitud"), ("cotizaciones", "Cotizaciones"), ("preordenes", "Pre-órdenes"),
+                ("gerencia", "Gerencia"), ("recepcion", "Recepción"), ("ordenes", "Órdenes"), ("avisos", "Avisos")
             };
-            int x = 24;
             foreach (var (clave, texto) in def)
             {
-                var b = new Button { Text = texto, Size = new Size(160, 38), Location = new Point(x, 10) };
+                var b = new Button { Text = texto, Size = new Size(142, 38) };
                 string k = clave;
                 b.Click += (s, e) => IrA(k);
                 pnlSecciones.Controls.Add(b);
                 _botones[clave] = b;
-                x += 166;
             }
 
-            ConstruirCotizacion();
-            ConstruirPreOrden();
-            ConstruirComprar();
+            ConstruirFaltantes();
+            ConstruirCotizaciones();
+            ConstruirPreOrdenes();
+            ConstruirGerencia();
             ConstruirRecepcion();
             ConstruirOrdenes();
             ConstruirAvisos();
@@ -148,7 +148,6 @@ namespace GUI_HRS_480
 
         private Panel NuevaSeccion(string clave)
         {
-            // Tamaño inicial = el área disponible del formulario, para que los Anchor de las tarjetas calculen bien
             var p = new Panel { Size = new Size(1120, 578), BackColor = Tema.Fondo, Visible = false };
             _paneles[clave] = p;
             return p;
@@ -157,17 +156,14 @@ namespace GUI_HRS_480
         private void IrA(string clave)
         {
             foreach (var kv in _paneles) kv.Value.Visible = kv.Key == clave;
-            foreach (var kv in _botones)
-            {
-                if (kv.Key == clave) Tema.BotonPrimario(kv.Value);
-                else Tema.BotonSecundario(kv.Value);
-            }
+            foreach (var kv in _botones) { if (kv.Key == clave) Tema.BotonPrimario(kv.Value); else Tema.BotonSecundario(kv.Value); }
             Mensaje("", null);
             switch (clave)
             {
-                case "cotizar": CargarStock(); break;
-                case "preorden": CargarCotizaciones(); break;
-                case "comprar": CargarPreOrdenes(); break;
+                case "faltantes": CargarFaltantes(); break;
+                case "cotizaciones": CargarSolicitudes(); break;
+                case "preordenes": CargarOfertas(); break;
+                case "gerencia": CargarBandeja(); break;
                 case "recepcion": CargarARecibir(); break;
                 case "ordenes": CargarOrdenes(); break;
                 case "avisos": CargarAvisos(); break;
@@ -175,31 +171,33 @@ namespace GUI_HRS_480
             ActualizarContadorAvisos();
         }
 
-        /// <summary>Cada rol ve solo las secciones de sus casos de uso (la BLL vuelve a validar).</summary>
+        /// <summary>Cada rol ve solo las secciones de sus casos de uso.</summary>
         private void AplicarPermisos()
         {
-            _botones["preorden"].Visible = ControlAcceso.PuedeGenerarPreOrden();
-            _botones["comprar"].Visible = ControlAcceso.PuedeRealizarCompra();
+            _botones["faltantes"].Visible = ControlAcceso.PuedeConsultarStock();
+            _botones["cotizaciones"].Visible = ControlAcceso.PuedeGenerarPreOrden();
+            _botones["preordenes"].Visible = ControlAcceso.PuedeGenerarPreOrden();
+            _botones["gerencia"].Visible = ControlAcceso.PuedeGenerarOrden();
             _botones["recepcion"].Visible = ControlAcceso.PuedeRegistrarRecepcionInsumos();
-
             int x = 24;
-            foreach (var b in _botones.Values.Where(b => b.Visible))
-            {
-                b.Location = new Point(x, 10);
-                x += 166;
-            }
+            foreach (var b in _botones.Values.Where(b => b.Visible)) { b.Location = new Point(x, 10); x += 148; }
 
-            // Compras puede consultar el stock pero no cotizar
-            bool puedeCotizar = ControlAcceso.PuedeRealizarCotizacion();
-            btnRegistrarCotizacion.Enabled = numCantCotizar.Enabled = txtObsCotizacion.Enabled = dgvOfertas.Enabled = puedeCotizar;
-            lblPermisoCotizar.Visible = !puedeCotizar;
-            if (!puedeCotizar) { btnRegistrarCotizacion.BackColor = Tema.Borde; btnRegistrarCotizacion.ForeColor = Tema.TextoSuave; }
+            // Solo el Encargado de Compras pide cotizaciones; el resto ve el stock
+            pnlSolicitud.Visible = ControlAcceso.PuedeGenerarSolicitudCotizacion();
+            dgvFaltantes.Columns[0].Visible = dgvFaltantes.Columns[6].Visible = ControlAcceso.PuedeGenerarSolicitudCotizacion();
         }
 
         private void Mensaje(string texto, bool? ok)
         {
             lblMensaje.Text = texto;
             lblMensaje.ForeColor = ok == null ? Tema.TextoSuave : (ok.Value ? Tema.Exito : Tema.Peligro);
+        }
+
+        private void Resultado<T>(ResultadoReposicion<T> r, string tituloOk = null)
+        {
+            Mensaje((r.Exito ? "✔ " : "✖ ") + r.Mensaje, r.Exito);
+            if (r.Exito && tituloOk != null) MessageBox.Show(this, r.Mensaje, tituloOk, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (!r.Exito) MessageBox.Show(this, r.Mensaje, "No se pudo completar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private void ActualizarContadorAvisos()
@@ -218,44 +216,36 @@ namespace GUI_HRS_480
 
         private static Label Texto(Control padre, int x, int y, int w, int h, bool negrita = false)
         {
-            var l = new Label
-            {
-                Location = new Point(x, y), Size = new Size(w, h), ForeColor = Tema.Texto,
-                Font = Tema.Fuente(9.5f, negrita ? FontStyle.Bold : FontStyle.Regular)
-            };
+            var l = new Label { Location = new Point(x, y), Size = new Size(w, h), ForeColor = Tema.Texto, Font = Tema.Fuente(9.5f, negrita ? FontStyle.Bold : FontStyle.Regular) };
             padre.Controls.Add(l);
             return l;
         }
 
         private static TextBox Caja(Control padre, int x, int y, int w, int max, int h = 26)
         {
-            var t = new TextBox
-            {
-                Location = new Point(x, y), Size = new Size(w, h), MaxLength = max, Font = Tema.Fuente(10),
-                BorderStyle = BorderStyle.FixedSingle, Multiline = h > 30
-            };
+            var t = new TextBox { Location = new Point(x, y), Size = new Size(w, h), MaxLength = max, Font = Tema.Fuente(10), BorderStyle = BorderStyle.FixedSingle, Multiline = h > 30 };
             padre.Controls.Add(t);
             return t;
         }
 
-        private static NumericUpDown Numero(Control padre, int x, int y, int w, int decimales, decimal max)
+        private static TextBox Campo(Control padre, string etiqueta, int x, int y, int w, int max)
         {
-            var n = new NumericUpDown
-            {
-                Location = new Point(x, y), Size = new Size(w, 26), DecimalPlaces = decimales,
-                Minimum = 0, Maximum = max, ThousandsSeparator = true, Font = Tema.Fuente(10)
-            };
-            padre.Controls.Add(n);
-            return n;
+            Etiqueta(padre, etiqueta, x, y);
+            return Caja(padre, x, y + 18, w, max);
+        }
+
+        private static Button Boton(Control padre, string texto, int x, int y, int w, int h, Action<Button> estilo, Action click)
+        {
+            var b = new Button { Text = texto, Location = new Point(x, y), Size = new Size(w, h) };
+            estilo(b);
+            b.Click += (s, e) => click();
+            padre.Controls.Add(b);
+            return b;
         }
 
         private static DataGridView Grilla(Control padre, int x, int y, int w, int h, params (string titulo, float peso)[] cols)
         {
-            var g = new DataGridView
-            {
-                Location = new Point(x, y), Size = new Size(w, h),
-                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-            };
+            var g = new DataGridView { Location = new Point(x, y), Size = new Size(w, h), Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right };
             Tema.EstilizarGrid(g);
             foreach (var (titulo, peso) in cols)
                 g.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = titulo, FillWeight = peso, SortMode = DataGridViewColumnSortMode.NotSortable });
@@ -263,18 +253,29 @@ namespace GUI_HRS_480
             return g;
         }
 
-        private static void Fila(DataGridView g, object tag, params object[] valores)
+        /// <summary>Grilla con celdas editables: <paramref name="editables"/> son los índices de columna que se pueden escribir.</summary>
+        private static void HacerEditable(DataGridView g, params int[] editables)
         {
-            int i = g.Rows.Add(valores);
-            g.Rows[i].Tag = tag;
+            g.ReadOnly = false;
+            g.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            g.EditMode = DataGridViewEditMode.EditOnEnter;
+            g.DataError += (s, e) => { e.ThrowException = false; };
+            for (int i = 0; i < g.Columns.Count; i++)
+            {
+                bool ed = editables.Contains(i);
+                g.Columns[i].ReadOnly = !ed;
+                if (ed) g.Columns[i].DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 235);
+            }
         }
 
-        private static T Seleccion<T>(DataGridView g) where T : class
-            => g.CurrentRow?.Tag as T;
+        private static DataGridViewCheckBoxColumn ColumnaCheck(string titulo, float peso)
+            => new DataGridViewCheckBoxColumn { HeaderText = titulo, FillWeight = peso, SortMode = DataGridViewColumnSortMode.NotSortable };
 
-        private static string Plural(int n, string uno, string varios) => n == 1 ? uno : varios;
+        private static void Fila(DataGridView g, object tag, params object[] valores) { int i = g.Rows.Add(valores); g.Rows[i].Tag = tag; }
+        private static T Seleccion<T>(DataGridView g) where T : class => g.CurrentRow?.Tag as T;
         private static string N(decimal d) => d.ToString("0.##");
         private static string Plata(decimal d) => "$ " + d.ToString("N2");
+        private static bool Marcado(DataGridViewRow r, int col) => r.Cells[col].Value is bool b && b;
 
         private static decimal LeerDecimal(object valor)
         {
@@ -285,472 +286,422 @@ namespace GUI_HRS_480
         }
 
         // ═════════════════════════════════════════════════════════
-        // CUN06 · Stock y realizar cotización
+        // CUN06 Generar solicitud de cotización · CUN07 Pre-registrar proveedor
         // ═════════════════════════════════════════════════════════
-        private void ConstruirCotizacion()
+        private void ConstruirFaltantes()
         {
-            var sec = NuevaSeccion("cotizar");
-            var izq = Tema.Card("Stock de insumos", 24, 6, 560, 560);
+            var sec = NuevaSeccion("faltantes");
+            var izq = Tema.Card("Insumos faltantes (stock en o por debajo del mínimo)", 24, 6, 600, 560);
             izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            chkCriticos = new CheckBox { Text = "Mostrar solo insumos críticos", AutoSize = true, Location = new Point(18, 52), ForeColor = Tema.Texto };
-            chkCriticos.CheckedChanged += (s, e) => CargarStock();
-            var btnAct = new Button { Text = "Actualizar", Size = new Size(110, 30), Location = new Point(430, 46), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            Tema.BotonSecundario(btnAct);
-            btnAct.Click += (s, e) => CargarStock();
-            dgvStock = Grilla(izq, 18, 88, 524, 454, ("Insumo", 38), ("Stock", 15), ("Mínimo", 14), ("Unidad", 16), ("Estado", 17));
-            dgvStock.SelectionChanged += (s, e) => StockSeleccionado();
-            izq.Controls.Add(chkCriticos);
-            izq.Controls.Add(btnAct);
+            chkTodoElStock = new CheckBox { Text = "Ver todo el stock", AutoSize = true, Location = new Point(18, 52), ForeColor = Tema.Texto };
+            chkTodoElStock.CheckedChanged += (s, e) => CargarFaltantes();
+            izq.Controls.Add(chkTodoElStock);
+            dgvFaltantes = new DataGridView { Location = new Point(18, 82), Size = new Size(564, 460), Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right };
+            Tema.EstilizarGrid(dgvFaltantes);
+            dgvFaltantes.Columns.Add(ColumnaCheck("Pedir", 8));
+            foreach (var (t, p) in new[] { ("Código", 12f), ("Insumo", 30f), ("Categoría", 15f), ("Stock", 11f), ("Mínimo", 11f), ("Cantidad", 13f) })
+                dgvFaltantes.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = t, FillWeight = p, SortMode = DataGridViewColumnSortMode.NotSortable });
+            HacerEditable(dgvFaltantes, 0, 6);
+            dgvFaltantes.CellValueChanged += (s, e) => ResumenSolicitud();
+            dgvFaltantes.CurrentCellDirtyStateChanged += (s, e) => { if (dgvFaltantes.IsCurrentCellDirty) dgvFaltantes.CommitEdit(DataGridViewDataErrorContexts.Commit); };
+            izq.Controls.Add(dgvFaltantes);
 
-            var der = Tema.Card("Realizar cotización", 604, 6, 490, 560);
-            der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            lblInsumoSel = Texto(der, 18, 50, 454, 22, true);
-            lblStockInfo = Texto(der, 18, 72, 454, 20);
-            lblStockInfo.ForeColor = Tema.TextoSuave;
-            Etiqueta(der, "Cantidad a cotizar", 18, 98);
-            numCantCotizar = Numero(der, 18, 116, 160, 2, 9999999);
-            numCantCotizar.ValueChanged += (s, e) => RecalcularOfertas();
-            lblUltimoPrecio = Texto(der, 196, 120, 276, 22);
-            lblUltimoPrecio.ForeColor = Tema.TextoSuave;
+            pnlSolicitud = Tema.Card("Solicitud de cotización", 644, 6, 450, 560);
+            pnlSolicitud.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+            var der = pnlSolicitud;
+            Etiqueta(der, "Proveedor al que se le pide la cotización", 18, 50);
+            cmbProveedor = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(18, 68), Size = new Size(414, 26), Font = Tema.Fuente(10) };
+            cmbProveedor.SelectedIndexChanged += (s, e) =>
+            {
+                var p = cmbProveedor.SelectedItem as ProveedorBE;
+                lblEstadoProv.Text = p == null ? "" : $"{p.Estado} · {p.Contacto} · {p.Telefono}" + (string.IsNullOrWhiteSpace(p.Email) ? " · sin correo" : " · " + p.Email);
+            };
+            der.Controls.Add(cmbProveedor);
+            lblEstadoProv = Texto(der, 18, 98, 414, 20);
+            lblEstadoProv.ForeColor = Tema.TextoSuave;
 
-            Etiqueta(der, "Precios informados por cada proveedor (dejá en 0 los que no cotizaron)", 18, 152);
-            dgvOfertas = Grilla(der, 18, 172, 454, 176, ("Proveedor", 42), ("Precio unit. ($)", 22), ("Plazo (días)", 16), ("Subtotal", 22));
-            dgvOfertas.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            dgvOfertas.ReadOnly = false;
-            dgvOfertas.SelectionMode = DataGridViewSelectionMode.CellSelect;
-            dgvOfertas.EditMode = DataGridViewEditMode.EditOnEnter;
-            dgvOfertas.Columns[0].ReadOnly = true;
-            dgvOfertas.Columns[3].ReadOnly = true;
-            dgvOfertas.Columns[1].DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 235);
-            dgvOfertas.Columns[2].DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 235);
-            dgvOfertas.CellEndEdit += (s, e) => RecalcularOfertas();
-            dgvOfertas.DataError += (s, e) => { e.ThrowException = false; };
+            var pre = new Panel { Location = new Point(18, 124), Size = new Size(414, 236), BackColor = Color.FromArgb(253, 246, 232) };
+            var lp = new Label { Text = "¿Nunca le vendió al hotel? Pre-registralo (CUN07)", AutoSize = true, Font = Tema.Fuente(9.5f, FontStyle.Bold), ForeColor = Tema.Marino, Location = new Point(10, 8) };
+            pre.Controls.Add(lp);
+            txtPreEmpresa = Campo(pre, "Empresa", 10, 34, 192, 150);
+            txtPreContacto = Campo(pre, "Contacto", 212, 34, 192, 100);
+            txtPreTelefono = Campo(pre, "Teléfono", 10, 86, 192, 30);
+            txtPreEmail = Campo(pre, "Correo (opcional)", 212, 86, 192, 200);
+            txtPreDireccion = Campo(pre, "Dirección", 10, 138, 394, 300);
+            btnPreRegistrar = Boton(pre, "Pre-registrar proveedor", 10, 190, 394, 36, Tema.BotonPrimario, PreRegistrar);
+            der.Controls.Add(pre);
 
-            lblMejorOferta = Texto(der, 18, 354, 454, 40, true);
-            lblMejorOferta.ForeColor = Tema.Exito;
-            Etiqueta(der, "Observaciones (opcional)", 18, 398);
-            txtObsCotizacion = Caja(der, 18, 416, 454, 300, 44);
-            btnRegistrarCotizacion = new Button { Text = "Registrar cotización", Location = new Point(18, 470), Size = new Size(454, 42) };
-            Tema.BotonDorado(btnRegistrarCotizacion);
-            btnRegistrarCotizacion.Click += (s, e) => RegistrarCotizacion();
-            der.Controls.Add(btnRegistrarCotizacion);
-            lblPermisoCotizar = Texto(der, 18, 518, 454, 36);
-            lblPermisoCotizar.Text = "Su rol puede consultar el stock, pero la cotización la realiza el Encargado de Depósito.";
-            lblPermisoCotizar.ForeColor = Tema.TextoSuave;
+            lblResumenSolicitud = Texto(der, 18, 372, 414, 40, true);
+            btnGenerarSolicitud = Boton(der, "Generar y enviar solicitud de cotización", 18, 418, 414, 44, Tema.BotonDorado, GenerarSolicitud);
+            var nota = Texto(der, 18, 470, 414, 70);
+            nota.Text = "Tildá los insumos y ajustá las cantidades. Para cotizar con más proveedores, generá una solicitud para cada uno.";
+            nota.ForeColor = Tema.TextoSuave;
+
+            sec.Controls.Add(izq);
+            sec.Controls.Add(pnlSolicitud);
+        }
+
+        private void CargarFaltantes()
+        {
+            var r = _stock.ObtenerStockInsumos(!chkTodoElStock.Checked);
+            dgvFaltantes.Rows.Clear();
+            if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
+            foreach (var i in r.Dato)
+            {
+                Fila(dgvFaltantes, i, i.Faltante, i.Codigo, i.Nombre, i.Categoria, N(i.StockActual), N(i.StockMinimo), i.Faltante ? N(i.CantidadSugerida) : "");
+                var row = dgvFaltantes.Rows[dgvFaltantes.Rows.Count - 1];
+                row.Cells[4].Style.ForeColor = i.Faltante ? Tema.Peligro : Tema.Exito;
+                row.Cells[4].Style.Font = Tema.Fuente(9.5f, FontStyle.Bold);
+            }
+            CargarProveedores(cmbProveedor);
+            int falt = r.Dato.Count(i => i.Faltante);
+            Mensaje(falt == 0 && !chkTodoElStock.Checked ? "No hay insumos faltantes: no hace falta pedir cotización." : $"{falt} insumos faltantes.", null);
+            ResumenSolicitud();
+        }
+
+        private void CargarProveedores(ComboBox cmb, int? seleccionar = null)
+        {
+            var sel = seleccionar ?? (cmb.SelectedItem as ProveedorBE)?.IdProveedor;
+            var pr = _proveedores.ObtenerProveedoresActivos();
+            cmb.Items.Clear();
+            if (pr.Exito) foreach (var p in pr.Dato) cmb.Items.Add(p);
+            int idx = cmb.Items.Cast<ProveedorBE>().ToList().FindIndex(p => p.IdProveedor == sel);
+            if (cmb.Items.Count > 0) cmb.SelectedIndex = idx >= 0 ? idx : 0;
+        }
+
+        private List<ItemInsumoBE> ItemsTildados()
+            => dgvFaltantes.Rows.Cast<DataGridViewRow>().Where(r => Marcado(r, 0) && r.Tag is InsumoBE)
+               .Select(r => new ItemInsumoBE { IdInsumo = ((InsumoBE)r.Tag).IdInsumo, NombreInsumo = ((InsumoBE)r.Tag).Nombre, Cantidad = LeerDecimal(r.Cells[6].Value) }).ToList();
+
+        private void ResumenSolicitud()
+        {
+            var items = ItemsTildados();
+            lblResumenSolicitud.Text = items.Count == 0 ? "Tildá los insumos a cotizar." : $"{items.Count} insumo(s): " + string.Join(", ", items.Select(i => $"{i.NombreInsumo} x{N(i.Cantidad)}"));
+        }
+
+        private void PreRegistrar()
+        {
+            var r = _proveedores.PreRegistrarProveedor(new ProveedorBE
+            { Nombre = txtPreEmpresa.Text, Contacto = txtPreContacto.Text, Telefono = txtPreTelefono.Text, Email = txtPreEmail.Text, Direccion = txtPreDireccion.Text });
+            Mensaje((r.Exito ? "✔ " : "✖ ") + r.Mensaje, r.Exito);
+            if (!r.Exito) return;
+            foreach (var t in new[] { txtPreEmpresa, txtPreContacto, txtPreTelefono, txtPreEmail, txtPreDireccion }) t.Clear();
+            CargarProveedores(cmbProveedor, r.Dato.IdProveedor);
+        }
+
+        private void GenerarSolicitud()
+        {
+            dgvFaltantes.EndEdit();
+            var p = cmbProveedor.SelectedItem as ProveedorBE;
+            if (p == null) { Mensaje("✖ Elegí un proveedor.", false); return; }
+            var r = _solicitudes.GenerarSolicitudCotizacion(p.IdProveedor, ItemsTildados());
+            Resultado(r, "Solicitud de cotización generada");
+        }
+
+        // ═════════════════════════════════════════════════════════
+        // CUN08 (1/2) Registrar la cotización que respondió el proveedor
+        // ═════════════════════════════════════════════════════════
+        private void ConstruirCotizaciones()
+        {
+            var sec = NuevaSeccion("cotizaciones");
+            var izq = Tema.Card("Solicitudes enviadas, esperando cotización", 24, 6, 470, 560);
+            izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            dgvSolicitudes = Grilla(izq, 18, 56, 434, 486, ("Nro", 20), ("Fecha", 22), ("Proveedor", 34), ("Insumos", 12));
+            dgvSolicitudes.SelectionChanged += (s, e) => SolicitudSeleccionada();
+
+            var der = Tema.Card("Registrar cotización recibida", 514, 6, 580, 560);
+            der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            lblSolicitudSel = Texto(der, 18, 48, 544, 22, true);
+            Etiqueta(der, "Lo que puede proveer (dejá en 0 lo que no cotizó)", 18, 74);
+            dgvItemsCotizacion = Grilla(der, 18, 94, 544, 220, ("Insumo", 38), ("Solicitado", 16), ("Disponible", 16), ("Precio unit. ($)", 18), ("Subtotal", 18));
+            dgvItemsCotizacion.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            HacerEditable(dgvItemsCotizacion, 2, 3);
+            dgvItemsCotizacion.CellEndEdit += (s, e) => RecalcularCotizacion();
+            var lb = new Label { Text = "Datos del proveedor para el pago", AutoSize = true, Font = Tema.Fuente(10, FontStyle.Bold), ForeColor = Tema.Marino, Location = new Point(18, 326) };
+            der.Controls.Add(lb);
+            txtCotCuit = Campo(der, "CUIT (11 dígitos)", 18, 350, 260, 15);
+            txtCotBanco = Campo(der, "Banco", 302, 350, 260, 100);
+            txtCotCbu = Campo(der, "CBU (22 dígitos)", 18, 404, 260, 30);
+            txtCotTitular = Campo(der, "Titular de la cuenta", 302, 404, 260, 150);
+            txtCotCbu.TextChanged += (s, e) => { string b = SERVICIOS_HRS_480.BancoServicio.BancoDelCBU(txtCotCbu.Text); if (b.Length > 0) txtCotBanco.Text = b; };
+            btnRegistrarCotizacion = Boton(der, "Registrar cotización", 18, 470, 544, 44, Tema.BotonDorado, RegistrarCotizacion);
 
             sec.Controls.Add(izq);
             sec.Controls.Add(der);
         }
 
-        private void CargarStock()
+        private void CargarSolicitudes()
         {
-            var r = _stock.ObtenerStockInsumos(chkCriticos.Checked);
-            dgvStock.Rows.Clear();
+            var r = _solicitudes.ObtenerSolicitudesSinCotizar();
+            dgvSolicitudes.Rows.Clear();
             if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
-            foreach (var i in r.Dato)
-            {
-                Fila(dgvStock, i, i.Nombre, N(i.StockActual), N(i.StockMinimo), i.UnidadMedida, i.Estado == "Critico" ? "Crítico" : "Normal");
-                var celda = dgvStock.Rows[dgvStock.Rows.Count - 1].Cells[4];
-                celda.Style.ForeColor = i.Estado == "Critico" ? Tema.Peligro : Tema.Exito;
-                celda.Style.Font = Tema.Fuente(9.5f, FontStyle.Bold);
-            }
-
-            // Una fila por proveedor activo para cargar lo que cotizó cada uno
-            dgvOfertas.Rows.Clear();
-            var pr = _proveedores.ObtenerProveedoresActivos();
-            if (pr.Exito)
-                foreach (var p in pr.Dato)
-                    Fila(dgvOfertas, p, p.Nombre, "0", "7", "");
-
-            int crit = r.Dato.Count(i => i.Estado == "Critico");
-            Mensaje($"{r.Dato.Count} insumos · {crit} en estado crítico.", null);
-            StockSeleccionado();
+            foreach (var s in r.Dato) Fila(dgvSolicitudes, s, s.NroSolicitud, s.FechaSolicitud.ToString("dd/MM/yyyy"), s.NombreProveedor, s.Items.Count);
+            Mensaje(r.Dato.Count == 0 ? "No hay solicitudes esperando cotización." : $"{r.Dato.Count} solicitud(es) esperando la cotización del proveedor.", null);
+            SolicitudSeleccionada();
         }
 
-        private void StockSeleccionado()
+        private void SolicitudSeleccionada()
         {
-            var i = Seleccion<InsumoBE>(dgvStock);
-            if (i == null) { lblInsumoSel.Text = "(seleccioná un insumo de la lista)"; lblStockInfo.Text = ""; lblUltimoPrecio.Text = ""; return; }
-            lblInsumoSel.Text = i.Nombre;
-            lblStockInfo.Text = $"Stock {N(i.StockActual)} {i.UnidadMedida} · mínimo {N(i.StockMinimo)} · {(i.Estado == "Critico" ? "CRÍTICO" : "normal")}";
-            decimal sugerida = Math.Max(1, i.StockMinimo * 2 - i.StockActual);
-            numCantCotizar.Value = Math.Min(numCantCotizar.Maximum, sugerida);
-            decimal? ultimo = _cotizaciones.ObtenerUltimoPrecio(i.IdInsumo);
-            lblUltimoPrecio.Text = ultimo.HasValue ? $"Último precio pagado: {Plata(ultimo.Value)}" : "Sin compras anteriores de este insumo";
-            RecalcularOfertas();
+            var s = Seleccion<SolicitudCotizacionBE>(dgvSolicitudes);
+            dgvItemsCotizacion.Rows.Clear();
+            btnRegistrarCotizacion.Enabled = s != null;
+            if (s == null) { lblSolicitudSel.Text = "Seleccioná una solicitud."; return; }
+            lblSolicitudSel.Text = $"{s.NroSolicitud} · {s.NombreProveedor}";
+            foreach (var i in s.Items) Fila(dgvItemsCotizacion, i, i.NombreInsumo, N(i.Cantidad), N(i.Cantidad), "0", "");
+            foreach (var t in new[] { txtCotCuit, txtCotBanco, txtCotCbu, txtCotTitular }) t.Clear();
+            txtCotTitular.Text = s.NombreProveedor;
         }
 
-        private List<CotizacionDetalleBE> OfertasCargadas()
-        {
-            var lista = new List<CotizacionDetalleBE>();
-            foreach (DataGridViewRow row in dgvOfertas.Rows)
-            {
-                if (!(row.Tag is ProveedorBE p)) continue;
-                decimal precio = LeerDecimal(row.Cells[1].Value);
-                if (precio <= 0) continue;
-                lista.Add(new CotizacionDetalleBE
-                {
-                    IdProveedor = p.IdProveedor,
-                    NombreProveedor = p.Nombre,
-                    PrecioUnitario = precio,
-                    PlazoDias = (int)Math.Round(LeerDecimal(row.Cells[2].Value)),
-                    Subtotal = Math.Round(precio * numCantCotizar.Value, 2)
-                });
-            }
-            return lista;
-        }
+        private List<ItemInsumoBE> ItemsCotizados()
+            => dgvItemsCotizacion.Rows.Cast<DataGridViewRow>().Where(r => r.Tag is ItemInsumoBE)
+               .Select(r => new ItemInsumoBE { IdInsumo = ((ItemInsumoBE)r.Tag).IdInsumo, NombreInsumo = ((ItemInsumoBE)r.Tag).NombreInsumo, Cantidad = LeerDecimal(r.Cells[2].Value), PrecioUnitario = LeerDecimal(r.Cells[3].Value) }).ToList();
 
-        private void RecalcularOfertas()
+        private void RecalcularCotizacion()
         {
-            var ofertas = OfertasCargadas();
-            var mejor = ofertas.OrderBy(o => o.PrecioUnitario).ThenBy(o => o.PlazoDias).FirstOrDefault();
-            foreach (DataGridViewRow row in dgvOfertas.Rows)
+            foreach (DataGridViewRow r in dgvItemsCotizacion.Rows)
             {
-                var p = row.Tag as ProveedorBE;
-                decimal precio = LeerDecimal(row.Cells[1].Value);
-                row.Cells[3].Value = precio > 0 ? Plata(precio * numCantCotizar.Value) : "";
-                bool esMejor = mejor != null && p != null && p.IdProveedor == mejor.IdProveedor;
-                row.DefaultCellStyle.Font = Tema.Fuente(9.5f, esMejor ? FontStyle.Bold : FontStyle.Regular);
-                row.Cells[0].Value = (p?.Nombre ?? "") + (esMejor ? "  ★" : "");
+                decimal c = LeerDecimal(r.Cells[2].Value), p = LeerDecimal(r.Cells[3].Value);
+                r.Cells[4].Value = c > 0 && p > 0 ? Plata(c * p) : "";
             }
-            lblMejorOferta.Text = mejor == null ? "" :
-                $"★ Más conveniente: {mejor.NombreProveedor} · {Plata(mejor.Subtotal)} · {mejor.PlazoDias} días" +
-                (ofertas.Count < CotizacionBLL.MIN_PROVEEDORES ? $"\n(cargá al menos {CotizacionBLL.MIN_PROVEEDORES} proveedores)" : "");
         }
 
         private void RegistrarCotizacion()
         {
-            dgvOfertas.EndEdit();
-            var i = Seleccion<InsumoBE>(dgvStock);
-            if (i == null) { Mensaje("✖ Seleccioná un insumo.", false); return; }
-            var ofertas = OfertasCargadas();
+            dgvItemsCotizacion.EndEdit();
+            var s = Seleccion<SolicitudCotizacionBE>(dgvSolicitudes);
+            if (s == null) return;
+            var r = _preordenes.RegistrarCotizacion(s.IdSolicitudCotizacion, ItemsCotizados(), txtCotCuit.Text, txtCotBanco.Text, txtCotCbu.Text, txtCotTitular.Text);
+            Resultado(r);
+            if (r.Exito) CargarSolicitudes();
+        }
 
-            var r = _cotizaciones.RegistrarCotizacion(i.IdInsumo, numCantCotizar.Value, ofertas, txtObsCotizacion.Text);
-            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
+        // ═════════════════════════════════════════════════════════
+        // CUN08 (2/2) Comparar cotizaciones y generar las pre-órdenes
+        // ═════════════════════════════════════════════════════════
+        private void ConstruirPreOrdenes()
+        {
+            var sec = NuevaSeccion("preordenes");
+            var card = Tema.Card("Comparación de cotizaciones: elegí una oferta por insumo", 24, 6, 1070, 560);
+            card.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dgvOfertas = new DataGridView { Location = new Point(18, 56), Size = new Size(1034, 410), Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right };
+            Tema.EstilizarGrid(dgvOfertas);
+            dgvOfertas.Columns.Add(ColumnaCheck("Elegir", 6));
+            foreach (var (t, p) in new[] { ("Insumo", 20f), ("Proveedor", 22f), ("Solicitado", 9f), ("Disponible", 9f), ("A pedir", 9f), ("Precio unit.", 10f), ("Subtotal", 11f), ("", 8f) })
+                dgvOfertas.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = t, FillWeight = p, SortMode = DataGridViewColumnSortMode.NotSortable });
+            HacerEditable(dgvOfertas, 0);
+            dgvOfertas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvOfertas.CurrentCellDirtyStateChanged += (s, e) => { if (dgvOfertas.IsCurrentCellDirty) dgvOfertas.CommitEdit(DataGridViewDataErrorContexts.Commit); };
+            dgvOfertas.CellValueChanged += (s, e) => OfertaTildada(e.RowIndex, e.ColumnIndex);
+            card.Controls.Add(dgvOfertas);
+            lblResumenPreOrden = Texto(card, 18, 478, 700, 60, true);
+            lblResumenPreOrden.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnGenerarPreOrdenes = Boton(card, "Generar pre-órdenes de compra", 742, 486, 310, 46, Tema.BotonDorado, GenerarPreOrdenes);
+            btnGenerarPreOrdenes.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            sec.Controls.Add(card);
+        }
+
+        private void CargarOfertas()
+        {
+            var r = _preordenes.ObtenerOfertasParaComparar();
+            _ajustandoOfertas = true;
+            dgvOfertas.Rows.Clear();
             if (r.Exito)
-            {
-                txtObsCotizacion.Clear();
-                var c = r.Dato;
-                string detalle = string.Join("\n", c.Detalles.Select(d =>
-                    $"{(d.MasConveniente ? "★ " : "   ")}{d.NombreProveedor}: {Plata(d.PrecioUnitario)} c/u · {Plata(d.Subtotal)} · {d.PlazoDias} días"));
-                MessageBox.Show(
-                    $"Cotización {c.NroCotizacion}\n\nInsumo: {c.NombreInsumo}\nCantidad: {N(c.Cantidad)} {c.UnidadMedida}\n\n{detalle}\n\n" +
-                    "Siguiente paso: generar la pre-orden con el proveedor elegido (sección Pre-orden).",
-                    "Cotización registrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                CargarStock();
-            }
-        }
-
-        // ═════════════════════════════════════════════════════════
-        // CUN07 · Generar pre-orden de compra
-        // ═════════════════════════════════════════════════════════
-        private void ConstruirPreOrden()
-        {
-            var sec = NuevaSeccion("preorden");
-            var izq = Tema.Card("Cotizaciones abiertas", 24, 6, 650, 560);
-            izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dgvCotizaciones = Grilla(izq, 18, 56, 614, 210, ("Nro", 14), ("Fecha", 19), ("Insumo", 27), ("Cantidad", 15), ("Prov.", 9), ("Mejor oferta", 18));
-            dgvCotizaciones.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            dgvCotizaciones.SelectionChanged += (s, e) => CotizacionSeleccionada();
-            var lblComp = new Label { Text = "Comparación de ofertas (elegí el proveedor)", AutoSize = true, Font = Tema.Fuente(10.5f, FontStyle.Bold), ForeColor = Tema.Marino, Location = new Point(18, 280) };
-            izq.Controls.Add(lblComp);
-            dgvComparacion = Grilla(izq, 18, 306, 614, 236, ("Proveedor", 36), ("Precio unit.", 18), ("Plazo", 12), ("Total", 20), ("", 14));
-            dgvComparacion.SelectionChanged += (s, e) => OfertaSeleccionada();
-
-            var der = Tema.Card("Generar pre-orden", 694, 6, 400, 560);
-            der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            lblDetallePreOrden = Texto(der, 18, 52, 364, 150);
-            Etiqueta(der, "Prioridad", 18, 210);
-            cmbPrioridad = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(18, 228), Size = new Size(170, 26), Font = Tema.Fuente(10) };
-            cmbPrioridad.Items.AddRange(new object[] { "Baja", "Normal", "Alta", "Urgente" });
-            cmbPrioridad.SelectedItem = "Normal";
-            der.Controls.Add(cmbPrioridad);
-            Etiqueta(der, "Observaciones (obligatorias si no elegís la más conveniente)", 18, 266);
-            txtObsPreOrden = Caja(der, 18, 284, 364, 300, 70);
-            btnGenerarPreOrden = new Button { Text = "Generar pre-orden de compra", Location = new Point(18, 370), Size = new Size(364, 42) };
-            Tema.BotonDorado(btnGenerarPreOrden);
-            btnGenerarPreOrden.Click += (s, e) => GenerarPreOrden();
-            der.Controls.Add(btnGenerarPreOrden);
-            btnAnularCotizacion = new Button { Text = "Anular cotización", Location = new Point(18, 420), Size = new Size(364, 34) };
-            Tema.BotonSecundario(btnAnularCotizacion);
-            btnAnularCotizacion.Click += (s, e) => AnularCotizacion();
-            der.Controls.Add(btnAnularCotizacion);
-            var nota = Texto(der, 18, 466, 364, 80);
-            nota.Text = "Al generar la pre-orden, Compras recibe un aviso para pagarla. Si el proveedor nunca cobró, Compras primero lo registra.";
-            nota.ForeColor = Tema.TextoSuave;
-
-            sec.Controls.Add(izq);
-            sec.Controls.Add(der);
-        }
-
-        private void CargarCotizaciones()
-        {
-            var r = _cotizaciones.ObtenerCotizacionesAbiertas();
-            dgvCotizaciones.Rows.Clear();
-            if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
-            foreach (var c in r.Dato)
-            {
-                var m = c.Detalles.FirstOrDefault(d => d.MasConveniente);
-                Fila(dgvCotizaciones, c, c.NroCotizacion, c.FechaCotizacion.ToString("dd/MM/yyyy HH:mm"), c.NombreInsumo,
-                     $"{N(c.Cantidad)} {c.UnidadMedida}", c.Detalles.Count, m == null ? "-" : Plata(m.Subtotal));
-            }
-            Mensaje(r.Dato.Count == 0 ? "No hay cotizaciones abiertas. Cotizá un insumo desde Stock y cotización."
-                                      : $"{r.Dato.Count} {Plural(r.Dato.Count, "cotización abierta", "cotizaciones abiertas")}.", null);
-            CotizacionSeleccionada();
-        }
-
-        private void CotizacionSeleccionada()
-        {
-            var c = Seleccion<CotizacionBE>(dgvCotizaciones);
-            dgvComparacion.Rows.Clear();
-            btnAnularCotizacion.Enabled = c != null;
-            if (c == null) { lblDetallePreOrden.Text = "Seleccioná una cotización."; btnGenerarPreOrden.Enabled = false; return; }
-            foreach (var d in c.Detalles)
-            {
-                Fila(dgvComparacion, d, d.NombreProveedor, Plata(d.PrecioUnitario), d.PlazoDias + " d", Plata(d.Subtotal), d.MasConveniente ? "★ mejor" : "");
-                if (d.MasConveniente)
+                foreach (var o in r.Dato)
                 {
-                    var row = dgvComparacion.Rows[dgvComparacion.Rows.Count - 1];
-                    row.DefaultCellStyle.Font = Tema.Fuente(9.5f, FontStyle.Bold);
-                    row.Cells[4].Style.ForeColor = Tema.Exito;
+                    Fila(dgvOfertas, o, o.Elegida, o.NombreInsumo, o.NombreProveedor, N(o.CantidadSolicitada), N(o.CantidadDisponible), N(o.CantidadAPedir),
+                         Plata(o.PrecioUnitario), Plata(o.Subtotal), o.MasConveniente ? "★ mejor" : "");
+                    if (o.MasConveniente) dgvOfertas.Rows[dgvOfertas.Rows.Count - 1].Cells[8].Style.ForeColor = Tema.Exito;
                 }
-            }
-            if (dgvComparacion.Rows.Count > 0) dgvComparacion.CurrentCell = dgvComparacion.Rows[0].Cells[0];
-            OfertaSeleccionada();
+            _ajustandoOfertas = false;
+            if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
+            Mensaje(r.Dato.Count == 0 ? "No hay cotizaciones para comparar. Registralas en la sección Cotizaciones." : $"{r.Dato.Select(o => o.IdInsumo).Distinct().Count()} insumos cotizados.", null);
+            ResumenPreOrden();
         }
 
-        private void OfertaSeleccionada()
+        /// <summary>Al tildar una oferta se destildan las otras del mismo insumo (una por insumo).</summary>
+        private void OfertaTildada(int fila, int col)
         {
-            var c = Seleccion<CotizacionBE>(dgvCotizaciones);
-            var d = Seleccion<CotizacionDetalleBE>(dgvComparacion);
-            btnGenerarPreOrden.Enabled = c != null && d != null;
-            if (c == null || d == null) return;
-            lblDetallePreOrden.Text =
-                $"{c.NroCotizacion} · {c.NombreInsumo}\n{N(c.Cantidad)} {c.UnidadMedida}\n\n" +
-                $"Proveedor elegido: {d.NombreProveedor}\nPrecio unitario: {Plata(d.PrecioUnitario)}\nPlazo: {d.PlazoDias} días\n" +
-                $"Total: {Plata(d.Subtotal)}" + (d.MasConveniente ? "\n★ Es la oferta más conveniente" : "\n⚠ No es la más conveniente: justificalo");
-        }
-
-        private void GenerarPreOrden()
-        {
-            var c = Seleccion<CotizacionBE>(dgvCotizaciones);
-            var d = Seleccion<CotizacionDetalleBE>(dgvComparacion);
-            if (c == null || d == null) { Mensaje("✖ Seleccioná una cotización y el proveedor elegido.", false); return; }
-
-            if (MessageBox.Show($"¿Generar la pre-orden de {N(c.Cantidad)} {c.UnidadMedida} de {c.NombreInsumo} con {d.NombreProveedor} por {Plata(d.Subtotal)}?",
-                    "Confirmar pre-orden", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-
-            var r = _preordenes.GenerarPreOrden(c.IdCotizacion, d.IdDetalleCotizacion, cmbPrioridad.SelectedItem?.ToString() ?? "Normal", txtObsPreOrden.Text);
-            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
-            if (r.Exito)
+            if (_ajustandoOfertas || col != 0 || fila < 0) return;
+            var o = dgvOfertas.Rows[fila].Tag as OfertaBE;
+            if (o != null && Marcado(dgvOfertas.Rows[fila], 0))
             {
-                txtObsPreOrden.Clear();
-                var po = r.Dato;
-                MessageBox.Show(
-                    $"Pre-orden {po.NroPreOrden}\n\nInsumo: {po.NombreInsumo}\nCantidad: {N(po.Cantidad)} {po.UnidadMedida}\nProveedor: {po.NombreProveedor}\n" +
-                    $"Total: {Plata(po.PrecioTotal)}\nPrioridad: {po.Prioridad}\n\nCompras fue notificado para realizar la compra.",
-                    "Pre-orden generada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _ajustandoOfertas = true;
+                foreach (DataGridViewRow r in dgvOfertas.Rows)
+                    if (r.Index != fila && r.Tag is OfertaBE x && x.IdInsumo == o.IdInsumo) r.Cells[0].Value = false;
+                _ajustandoOfertas = false;
             }
-            CargarCotizaciones();
+            ResumenPreOrden();
+        }
+
+        private List<OfertaBE> OfertasElegidas()
+            => dgvOfertas.Rows.Cast<DataGridViewRow>().Where(r => Marcado(r, 0) && r.Tag is OfertaBE).Select(r => (OfertaBE)r.Tag).ToList();
+
+        private void ResumenPreOrden()
+        {
+            var el = OfertasElegidas();
+            lblResumenPreOrden.Text = el.Count == 0 ? "No hay ofertas elegidas." :
+                string.Join("\n", el.GroupBy(o => o.NombreProveedor).Select(g => $"Pre-orden a {g.Key}: {g.Count()} insumo(s), {Plata(g.Sum(o => o.Subtotal))}"));
+            btnGenerarPreOrdenes.Enabled = el.Count > 0;
+        }
+
+        private void GenerarPreOrdenes()
+        {
+            var el = OfertasElegidas();
+            if (MessageBox.Show(this, lblResumenPreOrden.Text + "\n\n¿Generar las pre-órdenes?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            var r = _preordenes.GenerarPreOrdenes(el);
+            Resultado(r, "Pre-órdenes generadas");
+            CargarOfertas();
             ActualizarContadorAvisos();
         }
 
-        private void AnularCotizacion()
-        {
-            var c = Seleccion<CotizacionBE>(dgvCotizaciones);
-            if (c == null) return;
-            string motivo = txtObsPreOrden.Text.Trim();
-            if (motivo.Length == 0) { Mensaje("✖ Escribí en observaciones el motivo de la anulación.", false); txtObsPreOrden.Focus(); return; }
-            if (MessageBox.Show($"¿Anular la cotización {c.NroCotizacion} ({c.NombreInsumo})?", "Confirmar",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-            var r = _cotizaciones.AnularCotizacion(c.IdCotizacion, motivo);
-            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
-            if (r.Exito) txtObsPreOrden.Clear();
-            CargarCotizaciones();
-        }
-
         // ═════════════════════════════════════════════════════════
-        // CUN09 · Realizar compra (CUN08 · Registrar proveedor nuevo la extiende)
+        // CUN09 Generar orden de compra · CUN10 Registrar proveedor · CUN11 Pagar orden de compra
         // ═════════════════════════════════════════════════════════
-        private void ConstruirComprar()
+        private void ConstruirGerencia()
         {
-            var sec = NuevaSeccion("comprar");
-            var izq = Tema.Card("Pre-órdenes pendientes de pago", 24, 6, 600, 560);
+            var sec = NuevaSeccion("gerencia");
+            var izq = Tema.Card("Pre-órdenes a aprobar y órdenes a pagar", 24, 6, 590, 560);
             izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dgvPreOrdenes = Grilla(izq, 18, 56, 564, 486, ("Nro", 13), ("Insumo", 21), ("Cantidad", 14), ("Proveedor", 25), ("Total", 18), ("Prioridad", 11));
-            dgvPreOrdenes.SelectionChanged += (s, e) => PreOrdenSeleccionada();
+            dgvBandeja = Grilla(izq, 18, 56, 554, 486, ("Nro", 15), ("Fecha", 17), ("Proveedor", 30), ("Total", 19), ("Estado", 15));
+            dgvBandeja.SelectionChanged += (s, e) => OrdenSeleccionada();
 
-            var der = Tema.Card("Compra de insumos", 644, 6, 450, 560);
+            var der = Tema.Card("Orden seleccionada", 634, 6, 460, 560);
             der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            lblDetalleCompra = Texto(der, 18, 50, 414, 58, true);
-            lblEstadoProveedor = Texto(der, 18, 110, 414, 40, true);
+            lblDetalleOrden = Texto(der, 18, 46, 424, 104);
+            Etiqueta(der, "Motivo (solo si se cancela)", 18, 152);
+            txtMotivoCancelacion = Caja(der, 18, 170, 424, 250);
+            btnGenerarOrden = Boton(der, "Aprobar y generar orden", 18, 202, 260, 38, Tema.BotonPrimario, GenerarOrden);
+            btnCancelarPreOrden = Boton(der, "Cancelar pre-orden", 286, 202, 156, 38, Tema.BotonSecundario, CancelarPreOrden);
+            lblEstadoProvOrden = Texto(der, 18, 248, 424, 20, true);
 
-            // CUN08: solo visible si el proveedor nunca cobró
-            pnlRegistroProveedor = new Panel { Location = new Point(18, 152), Size = new Size(414, 176), BackColor = Color.FromArgb(253, 246, 232) };
-            Etiqueta(pnlRegistroProveedor, "CUIT (11 dígitos)", 10, 6);
-            txtCuit = Caja(pnlRegistroProveedor, 10, 24, 190, 15);
-            Etiqueta(pnlRegistroProveedor, "CBU (22 dígitos)", 212, 6);
-            txtCbu = Caja(pnlRegistroProveedor, 212, 24, 192, 30);
-            txtCbu.TextChanged += (s, e) =>
-            {
-                string b = SERVICIOS_HRS_480.BancoServicio.BancoDelCBU(txtCbu.Text);
-                if (b.Length > 0) txtBanco.Text = b;
-            };
-            Etiqueta(pnlRegistroProveedor, "Banco", 10, 58);
-            txtBanco = Caja(pnlRegistroProveedor, 10, 76, 190, 100);
-            Etiqueta(pnlRegistroProveedor, "Correo (si no lo tiene)", 212, 58);
-            txtEmailProv = Caja(pnlRegistroProveedor, 212, 76, 192, 200);
-            btnRegistrarProveedor = new Button { Text = "Registrar proveedor nuevo", Location = new Point(10, 120), Size = new Size(394, 40) };
-            Tema.BotonPrimario(btnRegistrarProveedor);
-            btnRegistrarProveedor.Click += (s, e) => RegistrarProveedor();
-            pnlRegistroProveedor.Controls.Add(btnRegistrarProveedor);
+            pnlRegistroProveedor = new Panel { Location = new Point(18, 270), Size = new Size(424, 150), BackColor = Color.FromArgb(253, 246, 232) };
+            txtRegCuit = Campo(pnlRegistroProveedor, "CUIT", 10, 4, 196, 15);
+            txtRegBanco = Campo(pnlRegistroProveedor, "Banco", 218, 4, 196, 100);
+            txtRegCbu = Campo(pnlRegistroProveedor, "CBU", 10, 54, 196, 30);
+            txtRegTitular = Campo(pnlRegistroProveedor, "Titular", 218, 54, 196, 150);
+            btnRegistrarProveedor = Boton(pnlRegistroProveedor, "Registrar proveedor (datos de su cotización)", 10, 106, 404, 36, Tema.BotonPrimario, RegistrarProveedor);
             der.Controls.Add(pnlRegistroProveedor);
 
-            Etiqueta(der, "Dirección de entrega", 18, 338);
-            txtDireccion = Caja(der, 18, 356, 414, 300);
+            Etiqueta(der, "Dirección de entrega", 18, 428);
+            txtDireccion = Caja(der, 18, 446, 424, 300);
             txtDireccion.Text = OrdenCompraBLL.DIRECCION_ENTREGA_DEFECTO;
-            lblTotalCompra = Texto(der, 18, 392, 414, 30, true);
-            lblTotalCompra.Font = Tema.Fuente(13, FontStyle.Bold);
-            lblTotalCompra.ForeColor = Tema.Marino;
-            btnPagar = new Button { Text = "Pagar por transferencia y generar orden", Location = new Point(18, 428), Size = new Size(414, 44) };
-            Tema.BotonDorado(btnPagar);
-            btnPagar.Click += (s, e) => Pagar();
-            der.Controls.Add(btnPagar);
-            var nota = Texto(der, 18, 480, 414, 70);
-            nota.Text = "El sistema se conecta con el banco y transfiere el total al CBU del proveedor. Con el pago aprobado " +
-                        "se genera la orden de compra y se le envía al proveedor por correo junto con el comprobante.";
-            nota.ForeColor = Tema.TextoSuave;
+            btnPagar = Boton(der, "Pagar orden y enviarla al proveedor", 18, 482, 424, 44, Tema.BotonDorado, () => Pagar(false));
 
             sec.Controls.Add(izq);
             sec.Controls.Add(der);
         }
 
-        private void CargarPreOrdenes()
+        private void CargarBandeja(int? seleccionar = null)
         {
-            var r = _preordenes.ObtenerPreOrdenesPendientes();
-            dgvPreOrdenes.Rows.Clear();
+            var r = _ordenes.ObtenerBandejaGerente();
+            dgvBandeja.Rows.Clear();
             if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
-            foreach (var p in r.Dato)
+            foreach (var o in r.Dato)
             {
-                Fila(dgvPreOrdenes, p, p.NroPreOrden, p.NombreInsumo, $"{N(p.Cantidad)} {p.UnidadMedida}",
-                     p.NombreProveedor + (p.ProveedorNuevo ? " (nuevo)" : ""), Plata(p.PrecioTotal), p.Prioridad);
-                if (p.ProveedorNuevo) dgvPreOrdenes.Rows[dgvPreOrdenes.Rows.Count - 1].Cells[3].Style.ForeColor = Tema.Peligro;
+                Fila(dgvBandeja, o, o.NroOrden, (o.FechaGeneracion ?? o.FechaPreOrden).ToString("dd/MM/yyyy"), o.NombreProveedor, Plata(o.Total), o.Estado);
+                if (o.IdOrden == seleccionar) dgvBandeja.CurrentCell = dgvBandeja.Rows[dgvBandeja.Rows.Count - 1].Cells[0];
             }
-            Mensaje(r.Dato.Count == 0 ? "No hay pre-órdenes pendientes de pago."
-                                      : $"{r.Dato.Count} {Plural(r.Dato.Count, "pre-orden espera", "pre-órdenes esperan")} el pago (primero las más urgentes).", null);
-            PreOrdenSeleccionada();
+            Mensaje(r.Dato.Count == 0 ? "No hay pre-órdenes ni órdenes pendientes de pago." :
+                $"{r.Dato.Count(o => o.Estado == EstadoOrden.PRE_ORDEN)} pre-orden(es) a aprobar · {r.Dato.Count(o => o.Estado == EstadoOrden.GENERADA)} orden(es) a pagar.", null);
+            OrdenSeleccionada();
         }
 
-        private void PreOrdenSeleccionada()
+        private void OrdenSeleccionada()
         {
-            var p = Seleccion<PreOrdenCompraBE>(dgvPreOrdenes);
-            if (p == null)
+            var o = Seleccion<OrdenCompraBE>(dgvBandeja);
+            bool pre = o?.Estado == EstadoOrden.PRE_ORDEN, gen = o?.Estado == EstadoOrden.GENERADA;
+            btnGenerarOrden.Enabled = btnCancelarPreOrden.Enabled = txtMotivoCancelacion.Enabled = pre;
+            if (o == null) { lblDetalleOrden.Text = "Seleccioná una pre-orden."; lblEstadoProvOrden.Text = ""; pnlRegistroProveedor.Visible = false; btnPagar.Enabled = false; return; }
+            lblDetalleOrden.Text = $"{o.NroOrden} · {o.NombreProveedor} · {o.Estado}\n" +
+                string.Join("\n", o.Items.Take(4).Select(i => $"  {i.NombreInsumo}: {N(i.Cantidad)} x {Plata(i.PrecioUnitario)} = {Plata(i.Subtotal)}")) +
+                (o.Items.Count > 4 ? $"\n  … y {o.Items.Count - 4} más" : "") + $"\nTotal: {Plata(o.Total)}";
+            bool provPre = o.EstadoProveedor != ProveedorBE.REGISTRADO;
+            lblEstadoProvOrden.ForeColor = provPre ? Tema.Peligro : Tema.Exito;
+            lblEstadoProvOrden.Text = provPre ? "Proveedor PRE-REGISTRADO: registralo antes de pagar (CUN10)." : "✔ Proveedor registrado.";
+            pnlRegistroProveedor.Visible = provPre;
+            if (provPre)
             {
-                lblDetalleCompra.Text = "Seleccioná una pre-orden.";
-                lblEstadoProveedor.Text = lblTotalCompra.Text = "";
-                pnlRegistroProveedor.Visible = false;
-                btnPagar.Enabled = false;
-                return;
+                var c = _ordenes.ObtenerCotizacionDeOrden(o.IdOrden);
+                if (c.Exito) { txtRegCuit.Text = c.Dato.CUIT; txtRegBanco.Text = c.Dato.Banco; txtRegCbu.Text = c.Dato.CBU; txtRegTitular.Text = c.Dato.Titular; }
             }
-            lblDetalleCompra.Text = $"{p.NroPreOrden} · {p.NombreInsumo}\n{N(p.Cantidad)} {p.UnidadMedida} × {Plata(p.PrecioUnitario)} · {p.PlazoDias} días";
-            lblTotalCompra.Text = "Total a pagar: " + Plata(p.PrecioTotal);
+            btnPagar.Enabled = gen && !provPre;
+        }
 
-            var prov = _proveedores.ObtenerProveedor(p.IdProveedor);
-            bool nuevo = !prov.Exito || prov.Dato.EsNuevo;
-            pnlRegistroProveedor.Visible = nuevo && ControlAcceso.PuedeRegistrarProveedor();
-            btnPagar.Enabled = !nuevo;
-            if (nuevo)
-            {
-                lblEstadoProveedor.ForeColor = Tema.Peligro;
-                lblEstadoProveedor.Text = "PROVEEDOR NUEVO (nunca se le pagó):\nregistrá su CUIT y CBU para poder pagarle.";
-                txtCuit.Text = prov.Exito ? prov.Dato.CUIT : "";
-                txtCbu.Text = prov.Exito ? prov.Dato.CBU : "";
-                txtEmailProv.Text = prov.Exito ? prov.Dato.Email : "";
-            }
-            else
-            {
-                lblEstadoProveedor.ForeColor = Tema.Exito;
-                lblEstadoProveedor.Text = $"✔ {prov.Dato.Nombre} ya está registrado para pagos.\nCBU {prov.Dato.CBU}{(string.IsNullOrWhiteSpace(prov.Dato.Banco) ? "" : " · " + prov.Dato.Banco)}";
-            }
+        private void GenerarOrden()
+        {
+            var o = Seleccion<OrdenCompraBE>(dgvBandeja);
+            if (o == null) return;
+            if (MessageBox.Show(this, $"¿Aprobar la pre-orden {o.NroOrden} de {o.NombreProveedor} por {Plata(o.Total)}?", "Generar orden de compra",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            var r = _ordenes.GenerarOrdenCompra(o.IdOrden);
+            Mensaje((r.Exito ? "✔ " : "✖ ") + r.Mensaje, r.Exito);
+            if (!r.Exito) { MessageBox.Show(this, r.Mensaje, "No se pudo generar", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            CargarBandeja(o.IdOrden);
+            // CUN09 incluye CUN11: si el proveedor ya está registrado se paga a continuación
+            if (r.Dato.EstadoProveedor == ProveedorBE.REGISTRADO) Pagar(true);
+            else MessageBox.Show(this, r.Mensaje, "Orden generada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void CancelarPreOrden()
+        {
+            var o = Seleccion<OrdenCompraBE>(dgvBandeja);
+            if (o == null) return;
+            var r = _ordenes.CancelarPreOrden(o.IdOrden, txtMotivoCancelacion.Text);
+            Resultado(r);
+            if (r.Exito) { txtMotivoCancelacion.Clear(); CargarBandeja(); }
         }
 
         private void RegistrarProveedor()
         {
-            var p = Seleccion<PreOrdenCompraBE>(dgvPreOrdenes);
-            if (p == null) return;
-            var r = _proveedores.RegistrarProveedorNuevo(new ProveedorBE
-            {
-                IdProveedor = p.IdProveedor,
-                CUIT = txtCuit.Text,
-                CBU = txtCbu.Text,
-                Banco = txtBanco.Text,
-                Email = txtEmailProv.Text
-            });
-            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
-            if (r.Exito) CargarPreOrdenes();
+            var o = Seleccion<OrdenCompraBE>(dgvBandeja);
+            if (o == null) return;
+            var r = _proveedores.RegistrarProveedor(o.IdProveedor, txtRegCuit.Text, txtRegBanco.Text, txtRegCbu.Text, txtRegTitular.Text);
+            Resultado(r);
+            if (!r.Exito) return;
+            CargarBandeja(o.IdOrden);
+            if (o.Estado == EstadoOrden.GENERADA) Pagar(true);
         }
 
-        private void Pagar()
+        private void Pagar(bool automatico)
         {
-            var p = Seleccion<PreOrdenCompraBE>(dgvPreOrdenes);
-            if (p == null) { Mensaje("✖ Seleccioná una pre-orden.", false); return; }
-
-            if (MessageBox.Show(
-                    $"Se transferirán {Plata(p.PrecioTotal)} a {p.NombreProveedor} y se generará la orden de compra:\n\n" +
-                    $"{N(p.Cantidad)} {p.UnidadMedida} de {p.NombreInsumo}\nPrecio unitario {Plata(p.PrecioUnitario)} · Plazo {p.PlazoDias} días\n\n¿Confirmás el pago?",
-                    "Confirmar compra", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-
-            var r = _ordenes.RealizarCompra(p.IdPreOrden, txtDireccion.Text);
-            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
-            if (r.Exito)
-                MessageBox.Show(
-                    $"Orden {r.Dato.NroOrden}\n\nProveedor: {r.Dato.NombreProveedor}\nInsumo: {r.Dato.NombreInsumo}\nCantidad: {N(r.Dato.Cantidad)}\n" +
-                    $"Total pagado: {Plata(r.Dato.PrecioTotal)}\nComprobante: {r.Dato.NroOperacionPago}\n\n{r.Mensaje}",
-                    "Compra realizada", MessageBoxButtons.OK, r.Dato.FechaEnvio.HasValue ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
-            else
-                MessageBox.Show(r.Mensaje, "No se realizó la compra", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            CargarPreOrdenes();
+            var o = Seleccion<OrdenCompraBE>(dgvBandeja);
+            if (o == null) return;
+            if (MessageBox.Show(this, $"Se va a pagar por transferencia la orden {o.NroOrden}:\n\n{o.NombreProveedor}\nTotal {Plata(o.Total)}\n\n¿Confirmás el pago?",
+                    automatico ? "Pagar orden de compra" : "Confirmar pago", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            var r = _ordenes.PagarOrden(o.IdOrden, txtDireccion.Text);
+            Resultado(r, "Orden pagada");
+            CargarBandeja();
+            ActualizarContadorAvisos();
         }
 
         // ═════════════════════════════════════════════════════════
-        // CUN10 · Registrar insumos recibidos (con la factura del proveedor)
+        // CUN12 Registrar recepción de insumos
         // ═════════════════════════════════════════════════════════
         private void ConstruirRecepcion()
         {
             var sec = NuevaSeccion("recepcion");
-            var izq = Tema.Card("Órdenes pagadas esperando los insumos", 24, 6, 640, 560);
+            var izq = Tema.Card("Órdenes pagadas: mercadería a recibir", 24, 6, 560, 560);
             izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dgvARecibir = Grilla(izq, 18, 56, 604, 486, ("Orden", 13), ("Pagada", 14), ("Proveedor", 24), ("Insumo", 22), ("Pedido", 11), ("Entrega hasta", 16));
+            dgvARecibir = Grilla(izq, 18, 56, 524, 486, ("Orden", 16), ("Pagada", 17), ("Proveedor", 34), ("Total", 19), ("Ítems", 10));
             dgvARecibir.SelectionChanged += (s, e) => ARecibirSeleccionada();
 
-            var der = Tema.Card("Registrar insumos recibidos", 684, 6, 410, 560);
+            var der = Tema.Card("Registrar recepción con la factura", 604, 6, 490, 560);
             der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            lblDetalleRecepcion = Texto(der, 18, 48, 374, 84);
-            var lblFac = new Label { Text = "Factura del proveedor", AutoSize = true, Font = Tema.Fuente(10, FontStyle.Bold), ForeColor = Tema.Marino, Location = new Point(18, 134) };
-            der.Controls.Add(lblFac);
-            Etiqueta(der, "Número de factura", 18, 158);
-            txtNroFactura = Caja(der, 18, 176, 180, 30);
-            Etiqueta(der, "Fecha de la factura", 212, 158);
-            dtpFechaFactura = new DateTimePicker { Location = new Point(212, 176), Size = new Size(180, 26), Format = DateTimePickerFormat.Short, Font = Tema.Fuente(10) };
-            der.Controls.Add(dtpFechaFactura);
-            Etiqueta(der, "Cantidad facturada", 18, 210);
-            numCantFacturada = Numero(der, 18, 228, 180, 2, 9999999);
-            Etiqueta(der, "Precio unitario facturado ($)", 212, 210);
-            numPrecioFacturado = Numero(der, 212, 228, 180, 2, 99999999);
-            Etiqueta(der, "Cantidad que realmente llegó", 18, 262);
-            numRecibida = Numero(der, 18, 280, 180, 2, 9999999);
-            numCantFacturada.ValueChanged += (s, e) => ControlarRecepcion();
-            numPrecioFacturado.ValueChanged += (s, e) => ControlarRecepcion();
-            numRecibida.ValueChanged += (s, e) => ControlarRecepcion();
-            lblControl = Texto(der, 18, 312, 374, 62, true);
-            Etiqueta(der, "Observaciones (opcional)", 18, 378);
-            txtObsRecepcion = Caja(der, 18, 396, 374, 300, 48);
-            btnRegistrarRecepcion = new Button { Text = "Registrar insumos recibidos", Location = new Point(18, 452), Size = new Size(374, 42) };
-            Tema.BotonDorado(btnRegistrarRecepcion);
-            btnRegistrarRecepcion.Click += (s, e) => RegistrarRecepcion();
-            der.Controls.Add(btnRegistrarRecepcion);
-            var nota = Texto(der, 18, 500, 374, 52);
-            nota.Text = "El stock se actualiza con lo que realmente llegó. Si no coincide con la factura o la orden, se avisa a Compras.";
+            lblDetalleRecepcion = Texto(der, 18, 46, 454, 22, true);
+            txtNroFactura = Campo(der, "Número de factura", 18, 72, 220, 30);
+            Etiqueta(der, "Total de la factura ($)", 252, 72);
+            numTotalFactura = new NumericUpDown { Location = new Point(252, 90), Size = new Size(220, 26), DecimalPlaces = 2, Maximum = 999999999, ThousandsSeparator = true, Font = Tema.Fuente(10) };
+            der.Controls.Add(numTotalFactura);
+            Etiqueta(der, "Cantidad realmente recibida de cada insumo", 18, 126);
+            dgvItemsRecepcion = Grilla(der, 18, 146, 454, 220, ("Insumo", 46), ("Pedido", 18), ("Recibido", 18), ("Dif.", 14));
+            dgvItemsRecepcion.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            HacerEditable(dgvItemsRecepcion, 2);
+            dgvItemsRecepcion.CellEndEdit += (s, e) => RecalcularRecepcion();
+            Etiqueta(der, "Observaciones (opcional)", 18, 374);
+            txtObsRecepcion = Caja(der, 18, 392, 454, 300, 44);
+            btnRegistrarRecepcion = Boton(der, "Registrar recepción y actualizar stock", 18, 448, 454, 44, Tema.BotonDorado, RegistrarRecepcion);
+            var nota = Texto(der, 18, 500, 454, 50);
+            nota.Text = "Después se le devuelve al proveedor la factura firmada. El stock se actualiza solo con lo recibido.";
             nota.ForeColor = Tema.TextoSuave;
 
             sec.Controls.Add(izq);
@@ -759,74 +710,46 @@ namespace GUI_HRS_480
 
         private void CargarARecibir()
         {
-            var r = _recepciones.ObtenerOrdenesPendientesDeRecepcion();
+            var r = _recepciones.ObtenerOrdenesARecibir();
             dgvARecibir.Rows.Clear();
             if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
-            foreach (var o in r.Dato)
-                Fila(dgvARecibir, o, o.NroOrden, (o.FechaPago ?? o.FechaEmision).ToString("dd/MM/yyyy"), o.NombreProveedor, o.NombreInsumo, N(o.Cantidad),
-                     o.PlazoDias.HasValue ? o.FechaEmision.AddDays(o.PlazoDias.Value).ToString("dd/MM/yyyy") : "-");
-            Mensaje(r.Dato.Count == 0 ? "No hay órdenes esperando insumos." : $"{r.Dato.Count} {Plural(r.Dato.Count, "orden espera", "órdenes esperan")} los insumos y la factura.", null);
+            foreach (var o in r.Dato) Fila(dgvARecibir, o, o.NroOrden, (o.FechaPago ?? o.FechaPreOrden).ToString("dd/MM/yyyy"), o.NombreProveedor, Plata(o.Total), o.Items.Count);
+            Mensaje(r.Dato.Count == 0 ? "No hay órdenes pagadas esperando mercadería." : $"{r.Dato.Count} orden(es) esperando la mercadería.", null);
             ARecibirSeleccionada();
         }
 
         private void ARecibirSeleccionada()
         {
             var o = Seleccion<OrdenCompraBE>(dgvARecibir);
+            dgvItemsRecepcion.Rows.Clear();
             btnRegistrarRecepcion.Enabled = o != null;
-            if (o == null) { lblDetalleRecepcion.Text = "Seleccioná una orden."; lblControl.Text = ""; return; }
-            lblDetalleRecepcion.Text =
-                $"{o.NroOrden} · {o.NombreProveedor}\nInsumo: {o.NombreInsumo}\nPedido: {N(o.Cantidad)} × {Plata(o.PrecioUnitario)} = {Plata(o.PrecioTotal)}\n" +
-                (string.IsNullOrWhiteSpace(o.NroOperacionPago) ? "" : $"Pago: {o.NroOperacionPago}");
-            // Por defecto, lo que dice la orden (el depósito corrige lo que no coincida)
-            numCantFacturada.Value = Math.Min(numCantFacturada.Maximum, o.Cantidad);
-            numPrecioFacturado.Value = Math.Min(numPrecioFacturado.Maximum, o.PrecioUnitario);
-            numRecibida.Value = Math.Min(numRecibida.Maximum, o.Cantidad);
-            dtpFechaFactura.Value = DateTime.Today;
+            if (o == null) { lblDetalleRecepcion.Text = "Seleccioná una orden."; return; }
+            lblDetalleRecepcion.Text = $"{o.NroOrden} · {o.NombreProveedor} · {Plata(o.Total)}";
+            foreach (var i in o.Items) Fila(dgvItemsRecepcion, i, i.NombreInsumo, N(i.Cantidad), N(i.Cantidad), "");
+            numTotalFactura.Value = Math.Min(numTotalFactura.Maximum, o.Total);
             txtNroFactura.Clear();
-            ControlarRecepcion();
         }
 
-        /// <summary>Vista previa del control que hace la BLL: orden vs factura vs mercadería.</summary>
-        private void ControlarRecepcion()
+        private void RecalcularRecepcion()
         {
-            var o = Seleccion<OrdenCompraBE>(dgvARecibir);
-            if (o == null) return;
-            var dif = new List<string>();
-            if (numCantFacturada.Value != o.Cantidad) dif.Add($"factura {N(numCantFacturada.Value)} vs orden {N(o.Cantidad)}");
-            if (numPrecioFacturado.Value != o.PrecioUnitario) dif.Add($"precio {Plata(numPrecioFacturado.Value)} vs pagado {Plata(o.PrecioUnitario)}");
-            if (numRecibida.Value != numCantFacturada.Value) dif.Add($"llegaron {N(numRecibida.Value)} vs facturadas {N(numCantFacturada.Value)}");
-            lblControl.ForeColor = dif.Count == 0 ? Tema.Exito : Tema.Peligro;
-            lblControl.Text = dif.Count == 0 ? "✔ Los productos coinciden con la factura y la orden." : "✖ No coincide: " + string.Join("; ", dif) + ".";
+            foreach (DataGridViewRow r in dgvItemsRecepcion.Rows)
+            {
+                decimal d = LeerDecimal(r.Cells[2].Value) - LeerDecimal(r.Cells[1].Value);
+                r.Cells[3].Value = d == 0 ? "" : (d > 0 ? "+" : "") + N(d);
+                r.Cells[3].Style.ForeColor = Tema.Peligro;
+            }
         }
 
         private void RegistrarRecepcion()
         {
+            dgvItemsRecepcion.EndEdit();
             var o = Seleccion<OrdenCompraBE>(dgvARecibir);
-            if (o == null) { Mensaje("✖ Seleccioná una orden.", false); return; }
-
-            bool coincide = lblControl.ForeColor == Tema.Exito;
-            if (MessageBox.Show($"¿Registrar la factura {txtNroFactura.Text.Trim()} y {N(numRecibida.Value)} de {o.NombreInsumo} recibidos (orden {o.NroOrden})?" +
-                                (coincide ? "" : "\n\nATENCIÓN: " + lblControl.Text),
-                    "Confirmar recepción", MessageBoxButtons.YesNo, coincide ? MessageBoxIcon.Question : MessageBoxIcon.Warning) != DialogResult.Yes) return;
-
-            var r = _recepciones.RegistrarInsumosRecibidos(new RecepcionConFacturaBE
-            {
-                IdOrden = o.IdOrden,
-                NroFactura = txtNroFactura.Text,
-                FechaFactura = dtpFechaFactura.Value.Date,
-                CantidadFacturada = numCantFacturada.Value,
-                PrecioUnitarioFacturado = numPrecioFacturado.Value,
-                CantidadRecibida = numRecibida.Value,
-                Observaciones = txtObsRecepcion.Text
-            });
-            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
-            if (r.Exito)
-            {
-                txtObsRecepcion.Clear();
-                MessageBox.Show(r.Mensaje, "Insumos registrados", MessageBoxButtons.OK,
-                    r.Dato.Coincide ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
-            }
-            CargarARecibir();
+            if (o == null) return;
+            var items = dgvItemsRecepcion.Rows.Cast<DataGridViewRow>().Where(r => r.Tag is ItemInsumoBE)
+                .Select(r => new ItemRecepcionBE { IdInsumo = ((ItemInsumoBE)r.Tag).IdInsumo, CantidadRecibida = LeerDecimal(r.Cells[2].Value) }).ToList();
+            var r = _recepciones.RegistrarRecepcion(o.IdOrden, txtNroFactura.Text, numTotalFactura.Value, items, txtObsRecepcion.Text);
+            Resultado(r, "Recepción registrada");
+            if (r.Exito) { txtObsRecepcion.Clear(); CargarARecibir(); }
             ActualizarContadorAvisos();
         }
 
@@ -840,27 +763,21 @@ namespace GUI_HRS_480
             card.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             Etiqueta(card, "Estado", 200, 20);
             cmbFiltroOrden = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(252, 15), Size = new Size(170, 26), Font = Tema.Fuente(10) };
-            cmbFiltroOrden.Items.AddRange(new object[] { "Todas", "Emitida", "Recibida", "Con diferencia" });
+            cmbFiltroOrden.Items.AddRange(new object[] { "Todas", EstadoOrden.PRE_ORDEN, EstadoOrden.GENERADA, EstadoOrden.PAGADA, EstadoOrden.RECIBIDA, EstadoOrden.CANCELADA });
             cmbFiltroOrden.SelectedIndex = 0;
             cmbFiltroOrden.SelectedIndexChanged += (s, e) => CargarOrdenes();
             card.Controls.Add(cmbFiltroOrden);
-            btnReenviar = new Button { Text = "Reenviar al proveedor", Size = new Size(190, 30), Location = new Point(862, 14), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            Tema.BotonSecundario(btnReenviar);
-            btnReenviar.Click += (s, e) => Reenviar();
-            card.Controls.Add(btnReenviar);
-            btnExportarListadoOrdenes = new Button { Text = "Listado (PDF)", Size = new Size(150, 30), Location = new Point(448, 14), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            Tema.BotonSecundario(btnExportarListadoOrdenes);
-            btnExportarListadoOrdenes.Click += (s, e) => ExportarListadoOrdenes();
-            card.Controls.Add(btnExportarListadoOrdenes);
-            btnExportarOrden = new Button { Text = "Exportar orden (PDF)", Size = new Size(200, 30), Location = new Point(646, 14), Anchor = AnchorStyles.Top | AnchorStyles.Right, Enabled = false };
-            Tema.BotonDorado(btnExportarOrden);
-            btnExportarOrden.Click += (s, e) => ExportarOrden();
-            card.Controls.Add(btnExportarOrden);
-            dgvOrdenes = Grilla(card, 18, 56, 1034, 486, ("Orden", 8), ("Emisión", 8), ("Pre-orden", 8), ("Proveedor", 15), ("Insumo", 13), ("Cant.", 5), ("Total", 9), ("Pago", 18), ("Estado", 10), ("Enviada", 8));
+            btnExportarListadoOrdenes = Boton(card, "Listado (PDF)", 448, 14, 150, 30, Tema.BotonSecundario, ExportarListadoOrdenes);
+            btnExportarListadoOrdenes.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnExportarOrden = Boton(card, "Exportar orden (PDF)", 646, 14, 200, 30, Tema.BotonDorado, ExportarOrden);
+            btnExportarOrden.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnReenviar = Boton(card, "Reenviar al proveedor", 862, 14, 190, 30, Tema.BotonSecundario, Reenviar);
+            btnReenviar.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            dgvOrdenes = Grilla(card, 18, 56, 1034, 486, ("Orden", 8), ("Fecha", 8), ("Proveedor", 15), ("Insumos", 27), ("Total", 9), ("Estado", 9), ("Pago", 15), ("Enviada", 9));
             dgvOrdenes.SelectionChanged += (s, e) =>
             {
                 var o = Seleccion<OrdenCompraBE>(dgvOrdenes);
-                btnReenviar.Enabled = o != null && o.Estado == "Emitida" && ControlAcceso.PuedeGestionarCompras();
+                btnReenviar.Enabled = o != null && o.Estado == EstadoOrden.PAGADA && ControlAcceso.PuedePagarOrden();
                 btnExportarOrden.Enabled = o != null;
             };
             sec.Controls.Add(card);
@@ -873,12 +790,10 @@ namespace GUI_HRS_480
             dgvOrdenes.Rows.Clear();
             if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
             foreach (var o in r.Dato)
-                Fila(dgvOrdenes, o, o.NroOrden, o.FechaEmision.ToString("dd/MM/yyyy"), string.IsNullOrWhiteSpace(o.NroPreOrden) ? "-" : o.NroPreOrden,
-                     o.NombreProveedor, o.NombreInsumo, N(o.Cantidad), Plata(o.PrecioTotal),
-                     string.IsNullOrWhiteSpace(o.NroOperacionPago) ? "-" : o.NroOperacionPago, o.Estado,
-                     o.FechaEnvio.HasValue ? o.FechaEnvio.Value.ToString("dd/MM HH:mm") : "NO enviada");
+                Fila(dgvOrdenes, o, o.NroOrden, (o.FechaGeneracion ?? o.FechaPreOrden).ToString("dd/MM/yyyy"), o.NombreProveedor, o.ResumenItems, Plata(o.Total), o.Estado,
+                     string.IsNullOrWhiteSpace(o.NroOperacionPago) ? "-" : o.NroOperacionPago, o.FechaEnvio.HasValue ? o.FechaEnvio.Value.ToString("dd/MM HH:mm") : "-");
             btnExportarOrden.Enabled = Seleccion<OrdenCompraBE>(dgvOrdenes) != null;
-            Mensaje($"{r.Dato.Count} {Plural(r.Dato.Count, "orden", "órdenes")}.", null);
+            Mensaje($"{r.Dato.Count} órdenes.", null);
         }
 
         private void ExportarOrden()
@@ -910,7 +825,7 @@ namespace GUI_HRS_480
             var o = Seleccion<OrdenCompraBE>(dgvOrdenes);
             if (o == null) return;
             var r = _ordenes.ReenviarOrden(o.IdOrden);
-            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
+            Mensaje((r.Exito ? "✔ " : "✖ ") + r.Mensaje, r.Exito);
             CargarOrdenes();
         }
 
@@ -919,10 +834,8 @@ namespace GUI_HRS_480
             var sec = NuevaSeccion("avisos");
             var card = Tema.Card("Mis avisos", 24, 6, 1070, 560);
             card.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            btnMarcarLeidas = new Button { Text = "Marcar todos como leídos", Size = new Size(210, 30), Location = new Point(842, 14), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            Tema.BotonSecundario(btnMarcarLeidas);
-            btnMarcarLeidas.Click += (s, e) => { _avisos.MarcarTodasLeidas(); CargarAvisos(); ActualizarContadorAvisos(); };
-            card.Controls.Add(btnMarcarLeidas);
+            btnMarcarLeidas = Boton(card, "Marcar todos como leídos", 842, 14, 210, 30, Tema.BotonSecundario, () => { _avisos.MarcarTodasLeidas(); CargarAvisos(); ActualizarContadorAvisos(); });
+            btnMarcarLeidas.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             dgvAvisos = Grilla(card, 18, 56, 1034, 486, ("Fecha", 13), ("Tipo", 18), ("Aviso", 60), ("Estado", 9));
             sec.Controls.Add(card);
         }

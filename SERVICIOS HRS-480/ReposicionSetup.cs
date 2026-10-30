@@ -61,34 +61,26 @@ namespace SERVICIOS_HRS_480
         {
             const string sql = @"
 SELECT CASE WHEN
-    OBJECT_ID(N'dbo.Notificaciones') IS NOT NULL
-AND OBJECT_ID(N'dbo.MovimientosStock') IS NOT NULL
-AND OBJECT_ID(N'dbo.SolicitudesReembolso') IS NOT NULL
-AND COL_LENGTH(N'dbo.OrdenesCompra', N'FechaEnvio') IS NOT NULL
-AND EXISTS (SELECT 1 FROM dbo.Modulos WHERE Nombre = N'Reposición de insumos')
-AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Error técnico de reposición')
-AND EXISTS (SELECT 1 FROM dbo.Roles WHERE Nombre = N'Encargado de Compras')
-AND EXISTS (SELECT 1 FROM dbo.Roles WHERE Nombre = N'Encargado de Almacén')
-AND (SELECT COUNT(*) FROM dbo.DigitoVerificador WHERE NombreTabla IN
-     (N'Insumos', N'Proveedores', N'SolicitudesCompra', N'OrdenesCompra',
-      N'RecepcionesInsumos', N'MovimientosStock', N'SolicitudesReembolso')) = 7
-AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Reporte de orden de compra exportado')
-AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Reporte de factura exportado')
-AND EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Orden_Estado')
--- PN2 v2: cotización, pre-orden, pago al proveedor y factura del proveedor
+    OBJECT_ID(N'dbo.SolicitudesCotizacion') IS NOT NULL
+AND OBJECT_ID(N'dbo.SolicitudesCotizacionDetalle') IS NOT NULL
 AND OBJECT_ID(N'dbo.Cotizaciones') IS NOT NULL
-AND OBJECT_ID(N'dbo.CotizacionesDetalle') IS NOT NULL
-AND OBJECT_ID(N'dbo.PreOrdenesCompra') IS NOT NULL
-AND OBJECT_ID(N'dbo.PagosProveedor') IS NOT NULL
-AND OBJECT_ID(N'dbo.FacturasProveedor') IS NOT NULL
-AND COL_LENGTH(N'dbo.Proveedores', N'CBU') IS NOT NULL
-AND COL_LENGTH(N'dbo.OrdenesCompra', N'IdPagoProveedor') IS NOT NULL
-AND COL_LENGTH(N'dbo.RecepcionesInsumos', N'IdFacturaProveedor') IS NOT NULL
-AND EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.OrdenesCompra') AND name = N'IdSolicitud' AND is_nullable = 1)
-AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Factura de proveedor registrada')
-AND EXISTS (SELECT 1 FROM dbo.Permisos WHERE Nombre = N'Registrar proveedor nuevo')
+AND COL_LENGTH(N'dbo.Cotizaciones', N'IdSolicitudCotizacion') IS NOT NULL
+AND OBJECT_ID(N'dbo.OrdenesCompraDetalle') IS NOT NULL
+AND OBJECT_ID(N'dbo.PagosOrdenCompra') IS NOT NULL
+AND OBJECT_ID(N'dbo.RecepcionesInsumosDetalle') IS NOT NULL
+AND OBJECT_ID(N'dbo.MovimientosStock') IS NOT NULL
+AND OBJECT_ID(N'dbo.Notificaciones') IS NOT NULL
+AND COL_LENGTH(N'dbo.Proveedores', N'Estado') IS NOT NULL
+AND COL_LENGTH(N'dbo.Insumos', N'Categoria') IS NOT NULL
+AND EXISTS (SELECT 1 FROM dbo.Modulos WHERE Nombre = N'Reposición de insumos')
+AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Pago de orden de compra aprobado')
+AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Reporte de factura exportado')
+AND EXISTS (SELECT 1 FROM dbo.Roles WHERE Nombre = N'Gerente de Compras')
+AND EXISTS (SELECT 1 FROM dbo.Roles WHERE Nombre = N'Encargado de Depósito')
+AND EXISTS (SELECT 1 FROM dbo.Roles WHERE Nombre = N'Encargado de Compras')
 AND (SELECT COUNT(*) FROM dbo.DigitoVerificador WHERE NombreTabla IN
-     (N'Cotizaciones', N'CotizacionesDetalle', N'PreOrdenesCompra', N'PagosProveedor', N'FacturasProveedor')) = 5
+     (N'Insumos', N'Proveedores', N'SolicitudesCotizacion', N'SolicitudesCotizacionDetalle', N'Cotizaciones', N'CotizacionesDetalle',
+      N'OrdenesCompra', N'OrdenesCompraDetalle', N'PagosOrdenCompra', N'RecepcionesInsumos', N'RecepcionesInsumosDetalle', N'MovimientosStock')) = 12
 THEN 1 ELSE 0 END";
             using var con = ConexionDB.ObtenerConexion();
             con.Open();

@@ -114,7 +114,7 @@ namespace GUI_HRS_480
             // Recepción (Check-IN / Check-OUT): Recepcionista y Administrador
             btnCheckin.Visible = puedeRecepcion;
             pnlAccesoRapido.Visible = puedeRecepcion;
-            // Reposición de insumos: Administrador, Encargado de Compras y Encargado de Almacén
+            // Reposición de insumos: Administrador, Encargado de Compras, Gerente de Compras y Encargado de Depósito
             btnInsumos.Visible = ControlAcceso.PuedeAccederReposicion();
             lblSecOperacion.Visible = puedeRecepcion || btnInsumos.Visible;
         }

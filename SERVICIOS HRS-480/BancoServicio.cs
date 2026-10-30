@@ -79,30 +79,33 @@ namespace SERVICIOS_HRS_480
             public string Mensaje { get; set; } = "";
         }
 
-        public ResultadoTransferencia RealizarTransferencia(string cuitDestino, string cbuDestino, decimal monto, string concepto)
+        /// <summary>
+        /// CUN11 Pagar orden de compra: el sistema le envía al banco número de orden, banco, CBU, titular y monto.
+        /// El banco aprueba (devuelve el número de operación) o rechaza.
+        /// </summary>
+        public ResultadoTransferencia Transferir(string nroOrden, string banco, string cbu, string titular, decimal monto)
         {
-            string cbu = SoloDigitos(cbuDestino);
-            string cuit = SoloDigitos(cuitDestino);
-
+            if (string.IsNullOrWhiteSpace(banco))
+                return new ResultadoTransferencia { Mensaje = "Pago rechazado por el banco: falta el banco de destino." };
             if (!ValidarCBU(cbu))
-                return new ResultadoTransferencia { Mensaje = "Transferencia rechazada: el CBU de destino no es válido." };
-            if (!ValidarCUIT(cuit))
-                return new ResultadoTransferencia { Mensaje = "Transferencia rechazada: el CUIT del destinatario no es válido." };
+                return new ResultadoTransferencia { Mensaje = "Pago rechazado por el banco: el CBU de destino no es válido." };
+            if (string.IsNullOrWhiteSpace(titular))
+                return new ResultadoTransferencia { Mensaje = "Pago rechazado por el banco: falta el titular de la cuenta." };
             if (monto <= 0)
-                return new ResultadoTransferencia { Mensaje = "Transferencia rechazada: el monto debe ser mayor a cero." };
+                return new ResultadoTransferencia { Mensaje = "Pago rechazado por el banco: el monto debe ser mayor a cero." };
             if (monto > LIMITE_POR_TRANSFERENCIA)
                 return new ResultadoTransferencia
                 {
-                    Mensaje = $"Transferencia rechazada: el monto supera el límite por operación del banco ($ {LIMITE_POR_TRANSFERENCIA:N2})."
+                    Mensaje = $"Pago rechazado por el banco: el monto supera el límite por operación ($ {LIMITE_POR_TRANSFERENCIA:N2})."
                 };
 
-            // Número de comprobante que devuelve el banco
-            string nro = "TRF-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Math.Abs((cbu + monto + concepto).GetHashCode() % 10000).ToString("D4");
+            string nro = "TRF-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" +
+                         Math.Abs((SoloDigitos(cbu) + monto + nroOrden).GetHashCode() % 10000).ToString("D4");
             return new ResultadoTransferencia
             {
                 Aprobada = true,
                 NroOperacion = nro,
-                Mensaje = $"Transferencia aprobada por el banco. Comprobante {nro}."
+                Mensaje = $"Pago aprobado por el banco. Operación {nro}."
             };
         }
 

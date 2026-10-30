@@ -278,9 +278,9 @@ namespace SERVICIOS_HRS_480
 
                         col.Item().Row(row =>
                         {
-                            row.RelativeItem().Column(c => Dato(c, "Fecha de emisión", o.FechaEmision.ToString("dd/MM/yyyy HH:mm", AR)));
+                            row.RelativeItem().Column(c => Dato(c, "Fecha", (o.FechaGeneracion ?? o.FechaPreOrden).ToString("dd/MM/yyyy HH:mm", AR)));
                             row.RelativeItem().Column(c => Dato(c, "Estado", o.Estado));
-                            row.RelativeItem().Column(c => Dato(c, "Plazo de entrega", o.PlazoDias.HasValue ? o.PlazoDias + " días" : "-"));
+                            row.RelativeItem().Column(c => Dato(c, "Pago", string.IsNullOrWhiteSpace(o.NroOperacionPago) ? "Pendiente" : o.NroOperacionPago));
                             row.RelativeItem().Column(c => Dato(c, "Enviada al proveedor",
                                 o.FechaEnvio.HasValue ? o.FechaEnvio.Value.ToString("dd/MM/yyyy HH:mm", AR) : "No enviada"));
                         });
@@ -298,10 +298,6 @@ namespace SERVICIOS_HRS_480
                             row.RelativeItem().PaddingLeft(6).Column(c => Bloque(c, "Entrega", b =>
                             {
                                 Dato(b, "Dirección de entrega", o.DireccionEntrega);
-                                if (!string.IsNullOrWhiteSpace(o.NroPreOrden))
-                                    Dato(b, "Pre-orden de origen", o.NroPreOrden);
-                                else if (o.IdSolicitud.HasValue)
-                                    Dato(b, "Solicitud de origen", "N° " + o.IdSolicitud);
                                 if (!string.IsNullOrWhiteSpace(o.NroOperacionPago))
                                     Dato(b, "Pago (transferencia)", o.NroOperacionPago +
                                         (o.FechaPago.HasValue ? " · " + o.FechaPago.Value.ToString("dd/MM/yyyy HH:mm", AR) : ""));
@@ -324,10 +320,13 @@ namespace SERVICIOS_HRS_480
                                 h.Cell().Element(CeldaTitulo).AlignRight().Text("Precio unitario").FontColor(Colors.White).Bold();
                                 h.Cell().Element(CeldaTitulo).AlignRight().Text("Importe").FontColor(Colors.White).Bold();
                             });
-                            t.Cell().Element(CeldaDato).Text(o.NombreInsumo);
-                            t.Cell().Element(CeldaDato).AlignRight().Text(Num(o.Cantidad));
-                            t.Cell().Element(CeldaDato).AlignRight().Text(Plata(o.PrecioUnitario));
-                            t.Cell().Element(CeldaDato).AlignRight().Text(Plata(o.PrecioTotal));
+                            foreach (var i in o.Items)
+                            {
+                                t.Cell().Element(CeldaDato).Text(i.Codigo + "  " + i.NombreInsumo);
+                                t.Cell().Element(CeldaDato).AlignRight().Text(Num(i.Cantidad));
+                                t.Cell().Element(CeldaDato).AlignRight().Text(Plata(i.PrecioUnitario));
+                                t.Cell().Element(CeldaDato).AlignRight().Text(Plata(i.Subtotal));
+                            }
                         });
 
                         col.Item().AlignRight().Width(240).Column(c =>
@@ -336,7 +335,7 @@ namespace SERVICIOS_HRS_480
                             c.Item().Row(r =>
                             {
                                 r.RelativeItem().Text("TOTAL DE LA ORDEN").Bold().FontSize(12).FontColor(COLOR_MARINO);
-                                r.ConstantItem(100).AlignRight().Text(Plata(o.PrecioTotal)).Bold().FontSize(12).FontColor(COLOR_MARINO);
+                                r.ConstantItem(100).AlignRight().Text(Plata(o.Total)).Bold().FontSize(12).FontColor(COLOR_MARINO);
                             });
                         });
                     });
@@ -369,32 +368,28 @@ namespace SERVICIOS_HRS_480
                                 cd.ConstantColumn(66);
                                 cd.ConstantColumn(72);
                                 cd.RelativeColumn(3);
-                                cd.RelativeColumn(3);
-                                cd.ConstantColumn(56);
-                                cd.RelativeColumn(2);
+                                cd.RelativeColumn(5);
                                 cd.RelativeColumn(2);
                                 cd.ConstantColumn(80);
                             });
                             t.Header(h =>
                             {
-                                foreach (var s in new[] { "Orden", "Emisión", "Proveedor", "Insumo", "Cantidad", "Precio unit.", "Total", "Estado" })
+                                foreach (var s in new[] { "Orden", "Fecha", "Proveedor", "Insumos", "Total", "Estado" })
                                     h.Cell().Element(CeldaTitulo).Text(s).FontColor(Colors.White).Bold();
                             });
                             foreach (var o in ordenes)
                             {
                                 t.Cell().Element(CeldaDato).Text(o.NroOrden);
-                                t.Cell().Element(CeldaDato).Text(o.FechaEmision.ToString("dd/MM/yyyy", AR));
+                                t.Cell().Element(CeldaDato).Text((o.FechaGeneracion ?? o.FechaPreOrden).ToString("dd/MM/yyyy", AR));
                                 t.Cell().Element(CeldaDato).Text(o.NombreProveedor);
-                                t.Cell().Element(CeldaDato).Text(o.NombreInsumo);
-                                t.Cell().Element(CeldaDato).AlignRight().Text(Num(o.Cantidad));
-                                t.Cell().Element(CeldaDato).AlignRight().Text(Plata(o.PrecioUnitario));
-                                t.Cell().Element(CeldaDato).AlignRight().Text(Plata(o.PrecioTotal));
+                                t.Cell().Element(CeldaDato).Text(o.ResumenItems);
+                                t.Cell().Element(CeldaDato).AlignRight().Text(Plata(o.Total));
                                 t.Cell().Element(CeldaDato).Text(o.Estado);
                             }
                         });
 
-                        decimal total = ordenes.Sum(x => x.PrecioTotal);
-                        col.Item().AlignRight().Text(ordenes.Count + (ordenes.Count == 1 ? " orden" : " órdenes") + "  ·  Total comprado: " + Plata(total))
+                        decimal total = ordenes.Where(x => x.Estado == "Pagada" || x.Estado == "Recibida").Sum(x => x.Total);
+                        col.Item().AlignRight().Text(ordenes.Count + (ordenes.Count == 1 ? " orden" : " órdenes") + "  ·  Total pagado: " + Plata(total))
                             .Bold().FontSize(11).FontColor(COLOR_MARINO);
                     });
                 });

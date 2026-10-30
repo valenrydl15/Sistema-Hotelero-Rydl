@@ -51,9 +51,8 @@ namespace SERVICIOS_HRS_480
     "RolFamilias", "RolPermisos", "FamiliaPermisos", "FamiliaFamilias",
     "Huespedes", "Habitaciones", "Reservas",
     "CheckIns", "CheckOuts", "Pagos", "Facturas",
-    "Insumos", "Proveedores", "SolicitudesCompra", "OrdenesCompra",
-    "RecepcionesInsumos", "MovimientosStock", "SolicitudesReembolso",
-    "Cotizaciones", "CotizacionesDetalle", "PreOrdenesCompra", "PagosProveedor", "FacturasProveedor"
+    "Insumos", "Proveedores", "SolicitudesCotizacion", "SolicitudesCotizacionDetalle", "Cotizaciones", "CotizacionesDetalle",
+    "OrdenesCompra", "OrdenesCompraDetalle", "PagosOrdenCompra", "RecepcionesInsumos", "RecepcionesInsumosDetalle", "MovimientosStock"
 };
 
         // ══════════════════════════════════════════════════════

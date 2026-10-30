@@ -5,172 +5,120 @@ using Microsoft.Data.SqlClient;
 namespace BLL_HRS_480
 {
     /// <summary>
-    /// CUN10 Registrar insumos recibidos. El proveedor, con el pago acreditado, envía los productos y su factura.
-    /// El Encargado de Depósito registra la factura y lo que realmente llegó; el sistema compara orden, factura y
-    /// mercadería. El stock se actualiza con lo recibido. Si algo no coincide, la recepción queda "Con diferencia"
-    /// y se avisa a Compras. Una sola recepción por orden.
+    /// CUN12 Registrar recepción de insumos. El proveedor entrega la mercadería con su factura; el Encargado de Depósito
+    /// registra la recepción (número de factura, cantidad recibida de cada insumo), la orden pasa a "Recibida" y el stock
+    /// se actualiza solo con lo que llegó. Si algo no coincide con lo pedido, queda "Con diferencia" y se avisa a Compras.
     /// </summary>
     public class RecepcionBLL
     {
-        private static readonly string[] TABLAS = { "FacturasProveedor", "RecepcionesInsumos", "OrdenesCompra", "Insumos", "MovimientosStock" };
+        private static readonly string[] TABLAS = { "RecepcionesInsumos", "RecepcionesInsumosDetalle", "OrdenesCompra", "Insumos", "MovimientosStock" };
         private readonly StockBLL _stock = new StockBLL();
 
-        public ResultadoReposicion<ControlRecepcionBE> RegistrarInsumosRecibidos(RecepcionConFacturaBE datos)
+        public ResultadoReposicion<RecepcionInsumoBE> RegistrarRecepcion(int idOrden, string nroFactura, decimal totalFactura,
+                                                                          List<ItemRecepcionBE> recibidos, string? observaciones = null)
         {
-            const string OP = "Registrar insumos recibidos";
-            if (!ControlAcceso.PuedeRegistrarRecepcionInsumos())
-                return ReposicionComun.Denegado<ControlRecepcionBE>(OP);
+            const string OP = "Registrar recepción de insumos";
+            if (!ControlAcceso.PuedeRegistrarRecepcionInsumos()) return ReposicionComun.Denegado<RecepcionInsumoBE>(OP);
 
-            if (datos == null || datos.IdOrden <= 0)
-                return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "Seleccioná la orden de compra recibida.");
-            string nroFactura = (datos.NroFactura ?? "").Trim();
-            if (nroFactura.Length == 0)
-                return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "Cargá el número de la factura del proveedor.");
-            if (nroFactura.Length > 30)
-                return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "El número de factura no puede superar los 30 caracteres.");
-            if (datos.FechaFactura.Date > DateTime.Today)
-                return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "La fecha de la factura no puede ser futura.");
-            if (datos.CantidadFacturada <= 0 || datos.CantidadFacturada > ReposicionComun.CANTIDAD_MAX)
-                return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "La cantidad facturada debe ser mayor a cero.");
-            if (datos.PrecioUnitarioFacturado <= 0 || datos.PrecioUnitarioFacturado > CotizacionBLL.PRECIO_MAX)
-                return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "El precio unitario de la factura debe ser mayor a cero.");
-            if (datos.CantidadRecibida < 0 || datos.CantidadRecibida > ReposicionComun.CANTIDAD_MAX)
-                return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "La cantidad recibida no es válida (no puede ser negativa).");
-            string obsUsuario = (datos.Observaciones ?? "").Trim();
-            if (obsUsuario.Length > 300)
-                return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "Las observaciones no pueden superar los 300 caracteres.");
+            nroFactura = (nroFactura ?? "").Trim();
+            observaciones = (observaciones ?? "").Trim();
+            recibidos ??= new List<ItemRecepcionBE>();
+            if (nroFactura.Length == 0) return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, "Cargá el número de la factura del proveedor.");
+            if (nroFactura.Length > 30) return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, "El número de factura no puede superar los 30 caracteres.");
+            if (totalFactura <= 0) return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, "Cargá el total de la factura.");
+            if (recibidos.Any(r => r.CantidadRecibida < 0 || r.CantidadRecibida > ReposicionComun.CANTIDAD_MAX))
+                return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, "Las cantidades recibidas no pueden ser negativas.");
+            if (observaciones.Length > 300) return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, "Las observaciones no pueden superar los 300 caracteres.");
 
             try
             {
                 bool dvOk = DigitoVerificador.Consistente(TABLAS);
-                var control = new ControlRecepcionBE();
-                OrdenCompraBE orden;
-
+                OrdenCompraBE o;
+                var rec = new RecepcionInsumoBE { IdOrden = idOrden, NroFactura = nroFactura, TotalFactura = totalFactura };
+                var dif = new List<string>();
                 using (var dal = new ReposicionDAL())
                 {
-                    orden = dal.ObtenerOrdenPorId(datos.IdOrden)!;
-                    if (orden == null)
-                        return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "La orden de compra no existe.");
-                    if (orden.Estado != "Emitida")
-                        return ReposicionComun.Rechazo<ControlRecepcionBE>(OP,
-                            $"La orden {orden.NroOrden} ya tiene sus insumos registrados (estado: {orden.Estado}).");
-                    DateTime desde = (orden.FechaPago ?? orden.FechaEmision).Date;
-                    if (datos.FechaFactura.Date < desde)
-                        return ReposicionComun.Rechazo<ControlRecepcionBE>(OP,
-                            $"La fecha de la factura no puede ser anterior al pago/emisión de la orden ({desde:dd/MM/yyyy}).");
-                    if (dal.ExisteFacturaProveedor(orden.IdProveedor, nroFactura))
-                        return ReposicionComun.Rechazo<ControlRecepcionBE>(OP,
-                            $"La factura {nroFactura} de {orden.NombreProveedor} ya fue registrada.");
+                    o = dal.ObtenerOrdenPorId(idOrden)!;
+                    if (o == null) return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, "La orden de compra no existe.");
+                    if (o.Estado != EstadoOrden.PAGADA)
+                        return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, $"Solo se reciben órdenes pagadas ({o.NroOrden} está {o.Estado.ToLower()}).");
+                    if (dal.ExisteFactura(o.IdProveedor, nroFactura))
+                        return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, $"La factura {nroFactura} de {o.NombreProveedor} ya fue registrada.");
+                    if (recibidos.Any(r => o.Items.All(i => i.IdInsumo != r.IdInsumo)))
+                        return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, "Hay un insumo que no está en la orden.");
 
-                    // ── Control: ¿coinciden orden, factura y mercadería? ──
-                    if (datos.CantidadFacturada != orden.Cantidad)
-                        control.Diferencias.Add($"la factura dice {datos.CantidadFacturada:0.##} y la orden {orden.Cantidad:0.##}");
-                    if (datos.PrecioUnitarioFacturado != orden.PrecioUnitario)
-                        control.Diferencias.Add($"precio facturado $ {datos.PrecioUnitarioFacturado:N2} y pagado $ {orden.PrecioUnitario:N2}");
-                    if (datos.CantidadRecibida != datos.CantidadFacturada)
-                        control.Diferencias.Add($"llegaron {datos.CantidadRecibida:0.##} y se facturaron {datos.CantidadFacturada:0.##}");
-
-                    string estado = control.Coincide ? "Aceptado" : "Con diferencia";
-                    string obs = control.Coincide ? obsUsuario
-                        : ("No coincide: " + string.Join("; ", control.Diferencias) + "." + (obsUsuario.Length > 0 ? " " + obsUsuario : ""));
-                    if (obs.Length > 300) obs = obs.Substring(0, 300);
+                    // Lo que no se informa se toma como no recibido
+                    foreach (var it in o.Items)
+                    {
+                        var r = recibidos.FirstOrDefault(x => x.IdInsumo == it.IdInsumo);
+                        decimal cant = r?.CantidadRecibida ?? 0;
+                        rec.Items.Add(new ItemRecepcionBE { IdInsumo = it.IdInsumo, NombreInsumo = it.NombreInsumo, CantidadPedida = it.Cantidad, CantidadRecibida = cant });
+                        if (cant != it.Cantidad) dif.Add($"{it.NombreInsumo}: pedido {it.Cantidad:0.##}, recibido {cant:0.##}");
+                    }
+                    if (totalFactura != o.Total) dif.Add($"factura $ {totalFactura:N2} y orden $ {o.Total:N2}");
+                    rec.Estado = dif.Count == 0 ? "Completa" : "Con diferencia";
+                    rec.Observaciones = dif.Count == 0 ? observaciones : ("Diferencias: " + string.Join("; ", dif) + "." + (observaciones.Length > 0 ? " " + observaciones : ""));
+                    if (rec.Observaciones.Length > 300) rec.Observaciones = rec.Observaciones.Substring(0, 300);
 
                     dal.Iniciar();
                     try
                     {
-                        int idFactura = dal.InsertarFacturaProveedor(new FacturaProveedorBE
+                        rec.IdRecepcion = dal.InsertarRecepcion(rec, ReposicionComun.IdActual);
+                        foreach (var it in rec.Items)
                         {
-                            IdOrden = orden.IdOrden,
-                            IdProveedor = orden.IdProveedor,
-                            NroFactura = nroFactura,
-                            FechaFactura = datos.FechaFactura.Date,
-                            IdInsumo = orden.IdInsumo,            // el insumo sale de la orden, no de la pantalla
-                            CantidadFacturada = datos.CantidadFacturada,
-                            PrecioUnitario = datos.PrecioUnitarioFacturado
-                        }, ReposicionComun.IdActual);
-
-                        int idRecepcion = dal.InsertarRecepcion(new RecepcionInsumoBE
-                        {
-                            IdOrden = orden.IdOrden,
-                            IdInsumo = orden.IdInsumo,
-                            CantidadRecibida = datos.CantidadRecibida,
-                            Estado = estado,
-                            Observaciones = obs,
-                            IdFacturaProveedor = idFactura
-                        }, ReposicionComun.IdActual);
-
-                        // El stock refleja lo que realmente hay en el depósito
-                        control.Movimiento = _stock.ActualizarStock(dal, orden.IdInsumo, datos.CantidadRecibida, idRecepcion);
-
-                        if (!dal.ActualizarEstadoOrden(orden.IdOrden, control.Coincide ? "Recibida" : "Con diferencia", "Emitida"))
+                            dal.InsertarDetalleRecepcion(rec.IdRecepcion, it);
+                            if (it.CantidadRecibida > 0)
+                                rec.Movimientos.Add(_stock.ActualizarStock(dal, it.IdInsumo, it.CantidadRecibida, rec.IdRecepcion));
+                        }
+                        if (!dal.CambiarEstadoOrden(idOrden, EstadoOrden.RECIBIDA, EstadoOrden.PAGADA))
                         {
                             dal.Revertir();
-                            return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, "La orden fue modificada por otro usuario. Volvé a intentar.");
+                            return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, "La orden fue modificada por otro usuario. Volvé a intentar.");
                         }
                         dal.Confirmar();
-
-                        control.Recepcion = new RecepcionInsumoBE
-                        {
-                            IdRecepcion = idRecepcion,
-                            IdOrden = orden.IdOrden,
-                            NroOrden = orden.NroOrden,
-                            IdInsumo = orden.IdInsumo,
-                            NombreInsumo = orden.NombreInsumo,
-                            CantidadRecibida = datos.CantidadRecibida,
-                            FechaRecepcion = DateTime.Now,
-                            Estado = estado,
-                            Observaciones = obs,
-                            IdFacturaProveedor = idFactura,
-                            NroFactura = nroFactura
-                        };
                     }
                     catch (SqlException ex) when (ReposicionComun.EsDuplicado(ex))
                     {
                         dal.Revertir();
-                        return ReposicionComun.Rechazo<ControlRecepcionBE>(OP, $"La orden {orden.NroOrden} o la factura {nroFactura} ya estaban registradas.");
+                        return ReposicionComun.Rechazo<RecepcionInsumoBE>(OP, $"La orden {o.NroOrden} ya tiene su recepción registrada.");
                     }
                 }
+                rec.NroOrden = o.NroOrden;
+                rec.FechaRecepcion = DateTime.Now;
 
-                var mov = control.Movimiento;
-                if (!control.Coincide)
-                    new NotificacionBLL().NotificarDiferenciaRecepcion(orden.IdOrden, string.Join("; ", control.Diferencias));
-
-                BitacoraReposicion.Registrar(BitacoraReposicion.FACTURA_PROVEEDOR, 4,
-                    $"{orden.NroOrden}: factura {nroFactura} de {orden.NombreProveedor} por {datos.CantidadFacturada:0.##} × $ {datos.PrecioUnitarioFacturado:N2}.", "EXITOSO");
-                BitacoraReposicion.Registrar(control.Coincide ? BitacoraReposicion.RECEPCION : BitacoraReposicion.RECEPCION_DIF,
-                    control.Coincide ? 3 : 2,
-                    $"{orden.NroOrden}: pedido {orden.Cantidad:0.##}, recibido {datos.CantidadRecibida:0.##} de {orden.NombreInsumo}." +
-                    (control.Coincide ? " Coincide con la factura." : " No coincide: " + string.Join("; ", control.Diferencias) + "."),
-                    "EXITOSO");
-                BitacoraReposicion.Registrar(BitacoraReposicion.STOCK_ACTUALIZADO, 4,
-                    $"{mov.NombreInsumo}: {mov.CantidadAnterior:0.##} → {mov.CantidadNueva:0.##} (+{mov.CantidadMovimiento:0.##}).", "EXITOSO");
+                if (dif.Count > 0)
+                    new NotificacionBLL().NotificarRol(ControlAcceso.ROL_COMPRAS, "Recepción con diferencia",
+                        $"La recepción de {o.NroOrden} ({o.NombreProveedor}) no coincide: {string.Join("; ", dif)}.", idOrden);
+                BitacoraReposicion.Registrar(dif.Count == 0 ? BitacoraReposicion.RECEPCION : BitacoraReposicion.RECEPCION_DIF, dif.Count == 0 ? 3 : 2,
+                    $"{o.NroOrden}, factura {nroFactura}: " + string.Join(", ", rec.Items.Select(i => $"{i.NombreInsumo} {i.CantidadRecibida:0.##}/{i.CantidadPedida:0.##}")) +
+                    (dif.Count == 0 ? "." : ". Diferencias: " + string.Join("; ", dif) + "."), "EXITOSO");
+                foreach (var m in rec.Movimientos)
+                    BitacoraReposicion.Registrar(BitacoraReposicion.STOCK_ACTUALIZADO, 4, $"{m.NombreInsumo}: {m.CantidadAnterior:0.##} + {m.CantidadMovimiento:0.##} = {m.CantidadNueva:0.##}.", "EXITOSO");
                 DigitoVerificador.RecalcularSi(dvOk, TABLAS);
 
-                string msg = $"Insumos registrados. Stock de {mov.NombreInsumo}: {mov.CantidadAnterior:0.##} + {mov.CantidadMovimiento:0.##} = {mov.CantidadNueva:0.##}.";
-                if (!control.Coincide)
-                    msg += " No coincide: " + string.Join("; ", control.Diferencias) + ". Se avisó a Compras.";
-                return ResultadoReposicion<ControlRecepcionBE>.Ok(control, msg);
+                string msg = $"Recepción de {o.NroOrden} registrada (factura {nroFactura}). Stock actualizado: " +
+                             string.Join("; ", rec.Movimientos.Select(m => $"{m.NombreInsumo} {m.CantidadAnterior:0.##} → {m.CantidadNueva:0.##}")) + ".";
+                if (dif.Count > 0) msg += " No coincide con lo pedido: se avisó a Compras.";
+                return ResultadoReposicion<RecepcionInsumoBE>.Ok(rec, msg);
             }
-            catch (Exception ex) { return ReposicionComun.ErrorTecnico<ControlRecepcionBE>(OP, ex); }
+            catch (Exception ex) { return ReposicionComun.ErrorTecnico<RecepcionInsumoBE>(OP, ex); }
         }
 
-        /// <summary>Órdenes pagadas y enviadas, esperando los productos y la factura.</summary>
-        public ResultadoReposicion<List<OrdenCompraBE>> ObtenerOrdenesPendientesDeRecepcion()
+        /// <summary>Órdenes pagadas esperando la mercadería.</summary>
+        public ResultadoReposicion<List<OrdenCompraBE>> ObtenerOrdenesARecibir()
         {
-            if (!ControlAcceso.PuedeRegistrarRecepcionInsumos())
-                return ReposicionComun.Denegado<List<OrdenCompraBE>>("Ver órdenes a recibir");
+            if (!ControlAcceso.PuedeRegistrarRecepcionInsumos()) return ReposicionComun.Denegado<List<OrdenCompraBE>>("Ver órdenes a recibir");
             try
             {
                 using var dal = new ReposicionDAL();
-                return ResultadoReposicion<List<OrdenCompraBE>>.Ok(dal.ObtenerOrdenes("Emitida"));
+                return ResultadoReposicion<List<OrdenCompraBE>>.Ok(dal.ObtenerOrdenes(EstadoOrden.PAGADA));
             }
             catch (Exception ex) { return ReposicionComun.ErrorTecnico<List<OrdenCompraBE>>("Ver órdenes a recibir", ex); }
         }
 
         public ResultadoReposicion<List<RecepcionInsumoBE>> ObtenerRecepciones()
         {
-            if (!ControlAcceso.PuedeAccederReposicion())
-                return ReposicionComun.Denegado<List<RecepcionInsumoBE>>("Ver recepciones");
+            if (!ControlAcceso.PuedeAccederReposicion()) return ReposicionComun.Denegado<List<RecepcionInsumoBE>>("Ver recepciones");
             try
             {
                 using var dal = new ReposicionDAL();

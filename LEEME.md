@@ -26,25 +26,29 @@ Abrir `Hoteleria Rydl Viejo.sln`, compilar (Ctrl+Shift+B) y ejecutar.
 3. Pago rechazado → reserva Cancelada y eventos "Pago rechazado" + "Reserva cancelada".
 4. Check-OUT → la habitación vuelve a Disponible.
 
-## PN2 — Gestión de reposición de insumos (v2: cotización, pre-orden, pago y factura)
-Botón **Reposición de Insumos** del menú (`FrmReposicion`), una sección por caso de uso:
-Stock y cotización (CUN06) · Pre-orden (CUN07) · Comprar (CUN08 Registrar proveedor nuevo + CUN09 Realizar compra) · Recepción (CUN10), más Órdenes y Avisos.
+## PN2 — Gestión de reposición de insumos (v3: solicitud de cotización → pre-orden → orden → pago → recepción)
+Botón **Reposición de Insumos** del menú (`FrmReposicion`), una sección por actor:
+Faltantes y solicitud (CUN06 + CUN07) · Cotizaciones y Pre-órdenes (CUN08) · Gerencia (CUN09 + CUN10 + CUN11) · Recepción (CUN12), más Órdenes y Avisos.
 
-- **Flujo**: Depósito cotiza con 2 o más proveedores → genera la pre-orden con el proveedor elegido (si no es el más conveniente, lo justifica) →
-  Compras registra al proveedor si nunca se le pagó (CUIT + CBU) → paga por transferencia (BancoServicio, simulado) → con el pago aprobado
-  se genera la orden y se envía al proveedor → Depósito registra la factura y lo recibido; si no coincide, la recepción queda "Con diferencia"
-  y se avisa a Compras. Ya no hay validación de solicitudes ni reembolsos.
-- **Roles**: `Encargado de Almacén` (= Encargado de Depósito: stock, cotización, pre-orden, recepción) y `Encargado de Compras`
-  (proveedor nuevo y compra). El Administrador hace todo. Los usuarios se crean desde *Gestión de Usuarios* (clave inicial = DNI + Apellido).
-- **Base de datos**: `Scripts/02_SQL_PN2_Reposicion.sql` (idempotente; sección 8 = flujo v2). La app lo ejecuta sola al iniciar y tras un Restore.
-  Tablas nuevas `Cotizaciones`, `CotizacionesDetalle`, `PreOrdenesCompra`, `PagosProveedor`, `FacturasProveedor`; columnas nuevas en
-  `Proveedores` (CUIT, CBU, Banco, FechaRegistroPago), `OrdenesCompra` (IdPreOrden, IdPagoProveedor; IdSolicitud pasa a admitir NULL)
-  y `RecepcionesInsumos` (IdFacturaProveedor). Las tablas viejas (`SolicitudesCompra`, `SolicitudesReembolso`) quedan con su historial.
-- **Dígito Verificador**: controla también las 5 tablas nuevas. Las tablas a las que se les agregan columnas vuelven al estado inicial ('0')
+- **Flujo**: Compras ve los insumos faltantes (stock ≤ mínimo) → genera una solicitud de cotización por proveedor y se la envía
+  (si el proveedor nunca le vendió al hotel lo pre-registra con empresa, contacto, teléfono y dirección) → registra la cotización
+  que manda cada proveedor (cantidad disponible, precio, CUIT, banco, CBU, titular) → compara y elige una oferta por insumo: se generan
+  las pre-órdenes (estado "Pre-orden") y se avisa al Gerente → el Gerente aprueba (orden "Generada") o cancela con motivo ("Cancelada")
+  → si el proveedor está pre-registrado, lo registra con los datos de su cotización → paga por transferencia (BancoServicio, simulado):
+  aprobado = orden "Pagada" y se envía al proveedor con el nro. de operación; rechazado = sigue "Generada" → Depósito registra la
+  factura y lo recibido: la orden pasa a "Recibida" y el stock se actualiza solo. Si algo no coincide se avisa a Compras.
+- **Roles**: `Encargado de Compras`, `Gerente de Compras` y `Encargado de Depósito` (el viejo "Encargado de Almacén" se renombra solo).
+  El Administrador hace todo. Los usuarios se crean desde *Gestión de Usuarios* (clave inicial = DNI + Apellido).
+- **Base de datos**: `Scripts/02_SQL_PN2_Reposicion.sql` (idempotente). La app lo ejecuta sola al iniciar y tras un Restore.
+  **Atención:** al pasar de la v2 a la v3 se borran las tablas transaccionales viejas del PN2 (cotizaciones, pre-órdenes, órdenes,
+  pagos, recepciones, movimientos y avisos); `Insumos` y `Proveedores` se conservan. Hacé un backup antes si querés guardar ese historial.
+  Tablas: `SolicitudesCotizacion(+Detalle)`, `Cotizaciones(+Detalle)`, `OrdenesCompra(+Detalle)`, `PagosOrdenCompra`,
+  `RecepcionesInsumos(+Detalle)`, `MovimientosStock`, `Notificaciones`; columnas nuevas en `Insumos` (Categoria) y `Proveedores`
+  (CUIT, Banco, CBU, Titular, Estado Pre-registrado/Registrado).
+- **Dígito Verificador**: controla las 12 tablas del PN2. Las que cambian de estructura vuelven al estado inicial ('0')
   y la app recalcula su DV en el próximo inicio de sesión.
 - **Datos para probar el pago**: cualquier CUIT de 11 dígitos y CBU de 22 dígitos (se valida el formato). Ej.: CUIT `30-71234567-1` ·
-  CBU `0070999000001234567891` (si empieza con un código de banco conocido, como 007 Galicia o 285 Macro, el banco se completa solo).
-  El banco simulado rechaza transferencias de más de $ 50.000.000 (sirve para mostrar el pago rechazado).
+  CBU `0070999000001234567891`. El banco simulado rechaza transferencias de más de $ 50.000.000 (sirve para mostrar el pago rechazado).
 - **Correo al proveedor**: sin configurar es *simulado* (guarda el texto en `Correos_Enviados\`). Para enviarlo de verdad, `correo.txt` junto al .exe:
   `servidor=smtp.gmail.com` · `puerto=587` · `usuario=...` · `clave=...` · `ssl=true`.
 - `InsumosDAL` quedó marcada obsoleta (la reemplaza `ReposicionDAL`, transaccional).
@@ -54,7 +58,7 @@ Stock y cotización (CUN06) · Pre-orden (CUN07) · Comprar (CUN08 Registrar pro
   exporta **una factura** o el **listado**. Al confirmar un Check-IN además se ofrece exportar la factura recién emitida.
 - **PN2 Reposición**: sección *Órdenes* → **Exportar orden (PDF)** (orden seleccionada) y **Listado (PDF)** (según el filtro de estado).
 - Código: `ReporteServicio` (documentos QuestPDF) · `ReporteBLL` (permisos, validación de ruta y bitácora) · `ReportesDAL` (consultas de solo lectura).
-  Permisos: facturas → Recepcionista/Administrador; órdenes → Administrador, Compras y Almacén.
+  Permisos: facturas → Recepcionista/Administrador; órdenes → Administrador, Compras, Gerente y Depósito.
 - Paquete NuGet `QuestPDF` (licencia Community, gratuita para uso académico). Se restaura solo al compilar (requiere internet la primera vez).
 - Bitácora: eventos `Reporte de factura exportado` y `Reporte de orden de compra exportado` (los agrega la app al iniciar; también `Scripts/03_SQL_Reportes.sql`).
 - Los reportes no modifican tablas, así que no afectan los dígitos verificadores.
