@@ -18,9 +18,9 @@ Hecho en **C# / Windows Forms (.NET 8)** sobre **SQL Server**, con arquitectura 
 - **Reportes PDF:** factura de estadía, y reporte de todas las facturas generadas (con resumen por medio de pago).
 
 **PN2 — Gestión de reposición de insumos**
-- CUN06 Generar solicitud de compra · CUN07 Validar solicitud · CUN08 Realizar compra de insumos (incluye CUN09 Seleccionar proveedor) · CUN10 Registrar recepción de insumos · CUN11 Registrar solicitud de reembolso.
-- Control de stock con alerta de insumos críticos, órdenes de compra enviadas al proveedor por correo y avisos entre áreas.
-- Roles: *Encargado de Almacén* (stock, solicitudes y recepciones), *Encargado de Compras* (validar, comprar y reembolsos) y *Administrador* (todo).
+- CUN06 Realizar cotización (varios proveedores, el sistema marca la oferta más conveniente) · CUN07 Generar pre-orden de compra · CUN08 Registrar proveedor nuevo (CUIT y CBU; extiende a CUN09) · CUN09 Realizar compra de insumos (pago por transferencia bancaria y orden de compra) · CUN10 Registrar insumos recibidos (contra la factura del proveedor).
+- Control de stock con alerta de insumos críticos, pago al proveedor antes de emitir la orden, control orden/factura/mercadería y avisos entre áreas.
+- Roles: *Encargado de Almacén / Depósito* (stock, cotización, pre-orden y recepción), *Encargado de Compras* (proveedor nuevo y compra con pago) y *Administrador* (todo).
 - **Reportes PDF:** orden de compra y listado de órdenes de compra.
 
 ## Arquitectura
