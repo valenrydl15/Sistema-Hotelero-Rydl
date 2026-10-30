@@ -108,34 +108,17 @@ namespace SERVICIOS_HRS_480
 
         public static string SoloDigitos(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
 
-        /// <summary>CBU argentino: 22 dígitos con dos dígitos verificadores (bloque banco/sucursal y bloque cuenta).</summary>
-        public static bool ValidarCBU(string? cbuTexto)
-        {
-            string cbu = SoloDigitos(cbuTexto);
-            if (cbu.Length != 22) return false;
-            int[] p1 = { 7, 1, 3, 9, 7, 1, 3 };
-            int s1 = 0;
-            for (int i = 0; i < 7; i++) s1 += (cbu[i] - '0') * p1[i];
-            if ((10 - s1 % 10) % 10 != cbu[7] - '0') return false;
-            int[] p2 = { 3, 9, 7, 1, 3, 9, 7, 1, 3, 9, 7, 1, 3 };
-            int s2 = 0;
-            for (int i = 0; i < 13; i++) s2 += (cbu[8 + i] - '0') * p2[i];
-            return (10 - s2 % 10) % 10 == cbu[21] - '0';
-        }
+        /// <summary>Solo números, espacios, guiones y puntos (sin letras ni otros símbolos).</summary>
+        private static bool SoloNumerosYSeparadores(string? s)
+            => !string.IsNullOrWhiteSpace(s) && s.All(c => char.IsDigit(c) || c == ' ' || c == '-' || c == '.');
 
-        /// <summary>CUIT/CUIL: 11 dígitos con dígito verificador (módulo 11).</summary>
+        /// <summary>CBU: 22 dígitos numéricos (se aceptan espacios o guiones entre grupos).</summary>
+        public static bool ValidarCBU(string? cbuTexto)
+            => SoloNumerosYSeparadores(cbuTexto) && SoloDigitos(cbuTexto).Length == 22;
+
+        /// <summary>CUIT/CUIL: 11 dígitos numéricos (con o sin guiones, por ejemplo 30-71234567-1).</summary>
         public static bool ValidarCUIT(string? cuitTexto)
-        {
-            string c = SoloDigitos(cuitTexto);
-            if (c.Length != 11) return false;
-            int[] p = { 5, 4, 3, 2, 7, 6, 5, 4, 3, 2 };
-            int s = 0;
-            for (int i = 0; i < 10; i++) s += (c[i] - '0') * p[i];
-            int dv = 11 - s % 11;
-            if (dv == 11) dv = 0;
-            if (dv == 10) dv = 9;
-            return dv == c[10] - '0';
-        }
+            => SoloNumerosYSeparadores(cuitTexto) && SoloDigitos(cuitTexto).Length == 11;
 
         /// <summary>Nombre del banco según los 3 primeros dígitos del CBU (si es uno conocido).</summary>
         public static string BancoDelCBU(string? cbuTexto)

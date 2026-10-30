@@ -587,10 +587,10 @@ namespace GUI_HRS_480
 
             // CUN08: solo visible si el proveedor nunca cobró
             pnlRegistroProveedor = new Panel { Location = new Point(18, 152), Size = new Size(414, 176), BackColor = Color.FromArgb(253, 246, 232) };
-            Etiqueta(pnlRegistroProveedor, "CUIT", 10, 6);
-            txtCuit = Caja(pnlRegistroProveedor, 10, 24, 190, 13);
+            Etiqueta(pnlRegistroProveedor, "CUIT (11 dígitos)", 10, 6);
+            txtCuit = Caja(pnlRegistroProveedor, 10, 24, 190, 15);
             Etiqueta(pnlRegistroProveedor, "CBU (22 dígitos)", 212, 6);
-            txtCbu = Caja(pnlRegistroProveedor, 212, 24, 192, 22);
+            txtCbu = Caja(pnlRegistroProveedor, 212, 24, 192, 30);
             txtCbu.TextChanged += (s, e) =>
             {
                 string b = SERVICIOS_HRS_480.BancoServicio.BancoDelCBU(txtCbu.Text);

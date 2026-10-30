@@ -42,7 +42,8 @@ Stock y cotización (CUN06) · Pre-orden (CUN07) · Comprar (CUN08 Registrar pro
   y `RecepcionesInsumos` (IdFacturaProveedor). Las tablas viejas (`SolicitudesCompra`, `SolicitudesReembolso`) quedan con su historial.
 - **Dígito Verificador**: controla también las 5 tablas nuevas. Las tablas a las que se les agregan columnas vuelven al estado inicial ('0')
   y la app recalcula su DV en el próximo inicio de sesión.
-- **Datos para probar el pago** (válidos): CUIT `30-71234567-1` · CBU `0070999000001234567891` (Banco de Galicia) o `2850590994004198765432` (Banco Macro).
+- **Datos para probar el pago**: cualquier CUIT de 11 dígitos y CBU de 22 dígitos (se valida el formato). Ej.: CUIT `30-71234567-1` ·
+  CBU `0070999000001234567891` (si empieza con un código de banco conocido, como 007 Galicia o 285 Macro, el banco se completa solo).
   El banco simulado rechaza transferencias de más de $ 50.000.000 (sirve para mostrar el pago rechazado).
 - **Correo al proveedor**: sin configurar es *simulado* (guarda el texto en `Correos_Enviados\`). Para enviarlo de verdad, `correo.txt` junto al .exe:
   `servidor=smtp.gmail.com` · `puerto=587` · `usuario=...` · `clave=...` · `ssl=true`.

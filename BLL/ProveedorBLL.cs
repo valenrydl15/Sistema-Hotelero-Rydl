@@ -46,14 +46,16 @@ namespace BLL_HRS_480
             if (datos == null || datos.IdProveedor <= 0)
                 return ReposicionComun.Rechazo<ProveedorBE>(OP, "Seleccioná el proveedor a registrar.");
 
-            string cuit = BancoServicio.SoloDigitos(datos.CUIT);
-            string cbu = BancoServicio.SoloDigitos(datos.CBU);
             string email = (datos.Email ?? "").Trim();
             string banco = (datos.Banco ?? "").Trim();
-            if (!BancoServicio.ValidarCUIT(cuit))
-                return ReposicionComun.Rechazo<ProveedorBE>(OP, "El CUIT no es válido (11 dígitos con dígito verificador correcto).");
-            if (!BancoServicio.ValidarCBU(cbu))
-                return ReposicionComun.Rechazo<ProveedorBE>(OP, "El CBU no es válido (22 dígitos con dígitos verificadores correctos).");
+            if (!BancoServicio.ValidarCUIT(datos.CUIT))
+                return ReposicionComun.Rechazo<ProveedorBE>(OP,
+                    $"El CUIT debe tener 11 dígitos (con o sin guiones). Se ingresaron {BancoServicio.SoloDigitos(datos.CUIT).Length}.");
+            if (!BancoServicio.ValidarCBU(datos.CBU))
+                return ReposicionComun.Rechazo<ProveedorBE>(OP,
+                    $"El CBU debe tener 22 dígitos numéricos. Se ingresaron {BancoServicio.SoloDigitos(datos.CBU).Length}.");
+            string cuit = BancoServicio.SoloDigitos(datos.CUIT);
+            string cbu = BancoServicio.SoloDigitos(datos.CBU);
             if (email.Length > 0 && (!email.Contains('@') || email.Length > 200))
                 return ReposicionComun.Rechazo<ProveedorBE>(OP, "El correo del proveedor no es válido.");
             if (banco.Length == 0) banco = BancoServicio.BancoDelCBU(cbu);
