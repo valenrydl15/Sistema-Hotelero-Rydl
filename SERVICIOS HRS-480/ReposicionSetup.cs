@@ -6,7 +6,8 @@ using DAL_HRS_480;
 namespace SERVICIOS_HRS_480
 {
     /// <summary>
-    /// Deja lista la base para el proceso PN2 (Reposición de insumos): tablas, restricciones,
+    /// Deja lista la base para el proceso PN2 (Reposición de insumos): tablas (incluye cotizaciones,
+    /// pre-órdenes, pagos y facturas de proveedor), restricciones,
     /// módulo y eventos de bitácora, roles/permisos, filas del Dígito Verificador y datos de ejemplo.
     /// Ejecuta el script embebido Scripts\02_SQL_PN2_Reposicion.sql, que es idempotente.
     /// Se llama al iniciar la aplicación y después de restaurar un backup viejo.
@@ -74,6 +75,20 @@ AND (SELECT COUNT(*) FROM dbo.DigitoVerificador WHERE NombreTabla IN
 AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Reporte de orden de compra exportado')
 AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Reporte de factura exportado')
 AND EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Orden_Estado')
+-- PN2 v2: cotización, pre-orden, pago al proveedor y factura del proveedor
+AND OBJECT_ID(N'dbo.Cotizaciones') IS NOT NULL
+AND OBJECT_ID(N'dbo.CotizacionesDetalle') IS NOT NULL
+AND OBJECT_ID(N'dbo.PreOrdenesCompra') IS NOT NULL
+AND OBJECT_ID(N'dbo.PagosProveedor') IS NOT NULL
+AND OBJECT_ID(N'dbo.FacturasProveedor') IS NOT NULL
+AND COL_LENGTH(N'dbo.Proveedores', N'CBU') IS NOT NULL
+AND COL_LENGTH(N'dbo.OrdenesCompra', N'IdPagoProveedor') IS NOT NULL
+AND COL_LENGTH(N'dbo.RecepcionesInsumos', N'IdFacturaProveedor') IS NOT NULL
+AND EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.OrdenesCompra') AND name = N'IdSolicitud' AND is_nullable = 1)
+AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Factura de proveedor registrada')
+AND EXISTS (SELECT 1 FROM dbo.Permisos WHERE Nombre = N'Registrar proveedor nuevo')
+AND (SELECT COUNT(*) FROM dbo.DigitoVerificador WHERE NombreTabla IN
+     (N'Cotizaciones', N'CotizacionesDetalle', N'PreOrdenesCompra', N'PagosProveedor', N'FacturasProveedor')) = 5
 THEN 1 ELSE 0 END";
             using var con = ConexionDB.ObtenerConexion();
             con.Open();

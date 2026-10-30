@@ -65,5 +65,100 @@ namespace SERVICIOS_HRS_480
                 mensaje = "Operación autorizada por el banco.";
                 return true;
         }
+
+        // ══════════════════════════════════════════════════════════════════
+        // PN2 · CUN09 Realizar compra de insumos: pago al proveedor por transferencia.
+        // Simulación de la conexión con el banco (en producción sería la API del banco).
+        // ══════════════════════════════════════════════════════════════════
+        public const decimal LIMITE_POR_TRANSFERENCIA = 50_000_000m;
+
+        public class ResultadoTransferencia
+        {
+            public bool Aprobada { get; set; }
+            public string NroOperacion { get; set; } = "";
+            public string Mensaje { get; set; } = "";
+        }
+
+        public ResultadoTransferencia RealizarTransferencia(string cuitDestino, string cbuDestino, decimal monto, string concepto)
+        {
+            string cbu = SoloDigitos(cbuDestino);
+            string cuit = SoloDigitos(cuitDestino);
+
+            if (!ValidarCBU(cbu))
+                return new ResultadoTransferencia { Mensaje = "Transferencia rechazada: el CBU de destino no es válido." };
+            if (!ValidarCUIT(cuit))
+                return new ResultadoTransferencia { Mensaje = "Transferencia rechazada: el CUIT del destinatario no es válido." };
+            if (monto <= 0)
+                return new ResultadoTransferencia { Mensaje = "Transferencia rechazada: el monto debe ser mayor a cero." };
+            if (monto > LIMITE_POR_TRANSFERENCIA)
+                return new ResultadoTransferencia
+                {
+                    Mensaje = $"Transferencia rechazada: el monto supera el límite por operación del banco ($ {LIMITE_POR_TRANSFERENCIA:N2})."
+                };
+
+            // Número de comprobante que devuelve el banco
+            string nro = "TRF-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + Math.Abs((cbu + monto + concepto).GetHashCode() % 10000).ToString("D4");
+            return new ResultadoTransferencia
+            {
+                Aprobada = true,
+                NroOperacion = nro,
+                Mensaje = $"Transferencia aprobada por el banco. Comprobante {nro}."
+            };
+        }
+
+        public static string SoloDigitos(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
+
+        /// <summary>CBU argentino: 22 dígitos con dos dígitos verificadores (bloque banco/sucursal y bloque cuenta).</summary>
+        public static bool ValidarCBU(string? cbuTexto)
+        {
+            string cbu = SoloDigitos(cbuTexto);
+            if (cbu.Length != 22) return false;
+            int[] p1 = { 7, 1, 3, 9, 7, 1, 3 };
+            int s1 = 0;
+            for (int i = 0; i < 7; i++) s1 += (cbu[i] - '0') * p1[i];
+            if ((10 - s1 % 10) % 10 != cbu[7] - '0') return false;
+            int[] p2 = { 3, 9, 7, 1, 3, 9, 7, 1, 3, 9, 7, 1, 3 };
+            int s2 = 0;
+            for (int i = 0; i < 13; i++) s2 += (cbu[8 + i] - '0') * p2[i];
+            return (10 - s2 % 10) % 10 == cbu[21] - '0';
+        }
+
+        /// <summary>CUIT/CUIL: 11 dígitos con dígito verificador (módulo 11).</summary>
+        public static bool ValidarCUIT(string? cuitTexto)
+        {
+            string c = SoloDigitos(cuitTexto);
+            if (c.Length != 11) return false;
+            int[] p = { 5, 4, 3, 2, 7, 6, 5, 4, 3, 2 };
+            int s = 0;
+            for (int i = 0; i < 10; i++) s += (c[i] - '0') * p[i];
+            int dv = 11 - s % 11;
+            if (dv == 11) dv = 0;
+            if (dv == 10) dv = 9;
+            return dv == c[10] - '0';
+        }
+
+        /// <summary>Nombre del banco según los 3 primeros dígitos del CBU (si es uno conocido).</summary>
+        public static string BancoDelCBU(string? cbuTexto)
+        {
+            string cbu = SoloDigitos(cbuTexto);
+            if (cbu.Length < 3) return "";
+            return cbu.Substring(0, 3) switch
+            {
+                "007" => "Banco de Galicia",
+                "011" => "Banco de la Nación Argentina",
+                "014" => "Banco de la Provincia de Buenos Aires",
+                "015" => "ICBC",
+                "017" => "BBVA Argentina",
+                "027" => "Banco Supervielle",
+                "029" => "Banco Ciudad",
+                "034" => "Banco Patagonia",
+                "044" => "Banco Hipotecario",
+                "072" => "Banco Santander",
+                "150" => "HSBC",
+                "191" => "Banco Credicoop",
+                "285" => "Banco Macro",
+                _ => ""
+            };
+        }
     }
 }

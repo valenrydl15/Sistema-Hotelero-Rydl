@@ -113,6 +113,8 @@ GO
    Solo se crean si no hay duplicados previos en los datos. */
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Ordenes_Solicitud' AND object_id = OBJECT_ID(N'dbo.OrdenesCompra'))
    AND NOT EXISTS (SELECT IdSolicitud FROM dbo.OrdenesCompra GROUP BY IdSolicitud HAVING COUNT(*) > 1)
+   /* solo en bases sin migrar al flujo v2 (seccion 8): despues IdSolicitud admite NULL */
+   AND EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.OrdenesCompra') AND name = N'IdSolicitud' AND is_nullable = 0)
     CREATE UNIQUE INDEX UX_Ordenes_Solicitud ON dbo.OrdenesCompra (IdSolicitud);
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Recepciones_Orden' AND object_id = OBJECT_ID(N'dbo.RecepcionesInsumos'))
@@ -275,7 +277,269 @@ BEGIN
 END;
 GO
 
+/* =====================================================================
+   8) PN2 v2 - FLUJO CON COTIZACION, PRE-ORDEN, PAGO Y FACTURA DEL PROVEEDOR
+      CUN06 Realizar cotizacion            (Encargado de Deposito)
+      CUN07 Generar pre-orden de compra    (Encargado de Deposito)
+      CUN08 Registrar proveedor nuevo      (Encargado de Compras, extiende a CUN09)
+      CUN09 Realizar compra de insumos     (Encargado de Compras: pago por banco + orden)
+      CUN10 Registrar insumos recibidos    (Encargado de Deposito, contra la factura)
+      Las tablas viejas (SolicitudesCompra, SolicitudesReembolso) quedan con su historial.
+   ===================================================================== */
+
+/* 8.1) Proveedores: datos para pagarle (destinatario bancario). CBU NULL = proveedor nuevo */
+DECLARE @cProv BIT = 0;
+IF COL_LENGTH(N'dbo.Proveedores', N'CUIT') IS NULL
+BEGIN ALTER TABLE dbo.Proveedores ADD CUIT NVARCHAR(13) NULL; SET @cProv = 1; END;
+IF COL_LENGTH(N'dbo.Proveedores', N'CBU') IS NULL
+BEGIN ALTER TABLE dbo.Proveedores ADD CBU NVARCHAR(22) NULL; SET @cProv = 1; END;
+IF COL_LENGTH(N'dbo.Proveedores', N'Banco') IS NULL
+BEGIN ALTER TABLE dbo.Proveedores ADD Banco NVARCHAR(100) NULL; SET @cProv = 1; END;
+IF COL_LENGTH(N'dbo.Proveedores', N'FechaRegistroPago') IS NULL
+BEGIN ALTER TABLE dbo.Proveedores ADD FechaRegistroPago DATETIME NULL; SET @cProv = 1; END;
+/* Cambiaron las columnas: el DV vuelve al estado inicial y la aplicacion lo recalcula */
+IF @cProv = 1
+    UPDATE dbo.DigitoVerificador SET DVH = '0', DVV = '0', FechaCalculo = GETDATE(), Valido = 1
+     WHERE NombreTabla = 'Proveedores';
+GO
+
+/* 8.2) Cotizacion: un insumo y una cantidad, cotizados con varios proveedores */
+IF OBJECT_ID(N'dbo.Cotizaciones', N'U') IS NULL
+CREATE TABLE dbo.Cotizaciones (
+    IdCotizacion      INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    IdInsumo          INT           NOT NULL,
+    Cantidad          DECIMAL(10,2) NOT NULL,
+    FechaCotizacion   DATETIME      NOT NULL CONSTRAINT DF_Cotizaciones_Fecha DEFAULT (GETDATE()),
+    Estado            NVARCHAR(20)  NOT NULL CONSTRAINT DF_Cotizaciones_Estado DEFAULT (N'Abierta'),
+    Observaciones     NVARCHAR(300) NULL,
+    IdUsuarioRegistro INT NULL,
+    CONSTRAINT FK_Cotizaciones_Insumo  FOREIGN KEY (IdInsumo)          REFERENCES dbo.Insumos(IdInsumo),
+    CONSTRAINT FK_Cotizaciones_Usuario FOREIGN KEY (IdUsuarioRegistro) REFERENCES dbo.Usuarios(IdUsuario),
+    CONSTRAINT CK_Cotizaciones_Cantidad CHECK (Cantidad > 0),
+    CONSTRAINT CK_Cotizaciones_Estado   CHECK (Estado IN (N'Abierta', N'Con pre-orden', N'Anulada'))
+);
+GO
+
+IF OBJECT_ID(N'dbo.CotizacionesDetalle', N'U') IS NULL
+CREATE TABLE dbo.CotizacionesDetalle (
+    IdDetalleCotizacion INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    IdCotizacion        INT           NOT NULL,
+    IdProveedor         INT           NOT NULL,
+    PrecioUnitario      DECIMAL(10,2) NOT NULL,
+    PlazoDias           INT           NOT NULL,
+    CONSTRAINT FK_CotDetalle_Cotizacion FOREIGN KEY (IdCotizacion) REFERENCES dbo.Cotizaciones(IdCotizacion),
+    CONSTRAINT FK_CotDetalle_Proveedor  FOREIGN KEY (IdProveedor)  REFERENCES dbo.Proveedores(IdProveedor),
+    CONSTRAINT UQ_CotDetalle_Proveedor  UNIQUE (IdCotizacion, IdProveedor),
+    CONSTRAINT CK_CotDetalle_Precio     CHECK (PrecioUnitario > 0),
+    CONSTRAINT CK_CotDetalle_Plazo      CHECK (PlazoDias BETWEEN 0 AND 365)
+);
+GO
+
+/* 8.3) Pre-orden de compra: la cotizacion elegida, lista para que Compras la pague */
+IF OBJECT_ID(N'dbo.PreOrdenesCompra', N'U') IS NULL
+CREATE TABLE dbo.PreOrdenesCompra (
+    IdPreOrden          INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    NroPreOrden         NVARCHAR(20)  NOT NULL,
+    IdCotizacion        INT           NOT NULL,
+    IdDetalleCotizacion INT           NOT NULL,
+    IdInsumo            INT           NOT NULL,
+    IdProveedor         INT           NOT NULL,
+    Cantidad            DECIMAL(10,2) NOT NULL,
+    PrecioUnitario      DECIMAL(10,2) NOT NULL,
+    PrecioTotal         AS (Cantidad * PrecioUnitario) PERSISTED,
+    PlazoDias           INT           NOT NULL,
+    Prioridad           NVARCHAR(20)  NOT NULL CONSTRAINT DF_PreOrden_Prioridad DEFAULT (N'Normal'),
+    FechaPreOrden       DATETIME      NOT NULL CONSTRAINT DF_PreOrden_Fecha DEFAULT (GETDATE()),
+    Estado              NVARCHAR(20)  NOT NULL CONSTRAINT DF_PreOrden_Estado DEFAULT (N'Pendiente'),
+    Observaciones       NVARCHAR(300) NULL,
+    IdUsuarioRegistro   INT NULL,
+    CONSTRAINT UQ_PreOrden_Nro        UNIQUE (NroPreOrden),
+    CONSTRAINT UQ_PreOrden_Cotizacion UNIQUE (IdCotizacion),
+    CONSTRAINT FK_PreOrden_Cotizacion FOREIGN KEY (IdCotizacion)        REFERENCES dbo.Cotizaciones(IdCotizacion),
+    CONSTRAINT FK_PreOrden_Detalle    FOREIGN KEY (IdDetalleCotizacion) REFERENCES dbo.CotizacionesDetalle(IdDetalleCotizacion),
+    CONSTRAINT FK_PreOrden_Insumo     FOREIGN KEY (IdInsumo)            REFERENCES dbo.Insumos(IdInsumo),
+    CONSTRAINT FK_PreOrden_Proveedor  FOREIGN KEY (IdProveedor)         REFERENCES dbo.Proveedores(IdProveedor),
+    CONSTRAINT FK_PreOrden_Usuario    FOREIGN KEY (IdUsuarioRegistro)   REFERENCES dbo.Usuarios(IdUsuario),
+    CONSTRAINT CK_PreOrden_Importes   CHECK (Cantidad > 0 AND PrecioUnitario > 0),
+    CONSTRAINT CK_PreOrden_Prioridad  CHECK (Prioridad IN (N'Baja', N'Normal', N'Alta', N'Urgente')),
+    CONSTRAINT CK_PreOrden_Estado     CHECK (Estado IN (N'Pendiente', N'Comprada'))
+);
+GO
+
+/* 8.4) Pago al proveedor por transferencia bancaria (se guardan tambien los rechazados) */
+IF OBJECT_ID(N'dbo.PagosProveedor', N'U') IS NULL
+CREATE TABLE dbo.PagosProveedor (
+    IdPagoProveedor   INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    IdPreOrden        INT           NOT NULL,
+    IdProveedor       INT           NOT NULL,
+    Monto             DECIMAL(12,2) NOT NULL,
+    MedioPago         NVARCHAR(40)  NOT NULL CONSTRAINT DF_PagosProv_Medio DEFAULT (N'Transferencia bancaria'),
+    CBUDestino        NVARCHAR(22)  NOT NULL,
+    NroOperacion      NVARCHAR(40)  NULL,
+    FechaPago         DATETIME      NOT NULL CONSTRAINT DF_PagosProv_Fecha DEFAULT (GETDATE()),
+    Estado            NVARCHAR(20)  NOT NULL,
+    DetalleBanco      NVARCHAR(200) NULL,
+    IdUsuarioRegistro INT NULL,
+    CONSTRAINT FK_PagosProv_PreOrden  FOREIGN KEY (IdPreOrden)        REFERENCES dbo.PreOrdenesCompra(IdPreOrden),
+    CONSTRAINT FK_PagosProv_Proveedor FOREIGN KEY (IdProveedor)       REFERENCES dbo.Proveedores(IdProveedor),
+    CONSTRAINT FK_PagosProv_Usuario   FOREIGN KEY (IdUsuarioRegistro) REFERENCES dbo.Usuarios(IdUsuario),
+    CONSTRAINT CK_PagosProv_Monto     CHECK (Monto > 0),
+    CONSTRAINT CK_PagosProv_Estado    CHECK (Estado IN (N'Aprobado', N'Rechazado'))
+);
+GO
+
+/* 8.5) OrdenesCompra: ahora nace de una pre-orden pagada (IdSolicitud queda solo para las viejas) */
+DECLARE @cOrd BIT = 0, @sql NVARCHAR(MAX) = N'';
+IF EXISTS (SELECT 1 FROM sys.columns
+           WHERE object_id = OBJECT_ID(N'dbo.OrdenesCompra') AND name = N'IdSolicitud' AND is_nullable = 0)
+BEGIN
+    /* Se quitan el indice unico y la FK sobre IdSolicitud para poder dejarla NULL */
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Ordenes_Solicitud' AND object_id = OBJECT_ID(N'dbo.OrdenesCompra'))
+        DROP INDEX UX_Ordenes_Solicitud ON dbo.OrdenesCompra;
+    SELECT @sql = @sql + N'ALTER TABLE dbo.OrdenesCompra DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';'
+    FROM sys.foreign_keys fk
+    JOIN sys.foreign_key_columns fc ON fc.constraint_object_id = fk.object_id
+    JOIN sys.columns c ON c.object_id = fc.parent_object_id AND c.column_id = fc.parent_column_id
+    WHERE fk.parent_object_id = OBJECT_ID(N'dbo.OrdenesCompra') AND c.name = N'IdSolicitud';
+    IF LEN(@sql) > 0 EXEC sp_executesql @sql;
+    ALTER TABLE dbo.OrdenesCompra ALTER COLUMN IdSolicitud INT NULL;
+    ALTER TABLE dbo.OrdenesCompra WITH CHECK
+        ADD CONSTRAINT FK_Ordenes_Solicitud FOREIGN KEY (IdSolicitud) REFERENCES dbo.SolicitudesCompra(IdSolicitud);
+    SET @cOrd = 1;
+END;
+IF COL_LENGTH(N'dbo.OrdenesCompra', N'IdPreOrden') IS NULL
+BEGIN ALTER TABLE dbo.OrdenesCompra ADD IdPreOrden INT NULL; SET @cOrd = 1; END;
+IF COL_LENGTH(N'dbo.OrdenesCompra', N'IdPagoProveedor') IS NULL
+BEGIN ALTER TABLE dbo.OrdenesCompra ADD IdPagoProveedor INT NULL; SET @cOrd = 1; END;
+IF @cOrd = 1
+    UPDATE dbo.DigitoVerificador SET DVH = '0', DVV = '0', FechaCalculo = GETDATE(), Valido = 1
+     WHERE NombreTabla = 'OrdenesCompra';
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Ordenes_PreOrden')
+    ALTER TABLE dbo.OrdenesCompra WITH CHECK
+        ADD CONSTRAINT FK_Ordenes_PreOrden FOREIGN KEY (IdPreOrden) REFERENCES dbo.PreOrdenesCompra(IdPreOrden);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Ordenes_PagoProveedor')
+    ALTER TABLE dbo.OrdenesCompra WITH CHECK
+        ADD CONSTRAINT FK_Ordenes_PagoProveedor FOREIGN KEY (IdPagoProveedor) REFERENCES dbo.PagosProveedor(IdPagoProveedor);
+GO
+
+/* 8.6) Factura que manda el proveedor junto con los productos */
+IF OBJECT_ID(N'dbo.FacturasProveedor', N'U') IS NULL
+CREATE TABLE dbo.FacturasProveedor (
+    IdFacturaProveedor INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    IdOrden            INT           NOT NULL,
+    IdProveedor        INT           NOT NULL,
+    NroFactura         NVARCHAR(30)  NOT NULL,
+    FechaFactura       DATETIME      NOT NULL,
+    IdInsumo           INT           NOT NULL,
+    CantidadFacturada  DECIMAL(10,2) NOT NULL,
+    PrecioUnitario     DECIMAL(10,2) NOT NULL,
+    Total              AS (CantidadFacturada * PrecioUnitario) PERSISTED,
+    FechaRegistro      DATETIME      NOT NULL CONSTRAINT DF_FactProv_Fecha DEFAULT (GETDATE()),
+    IdUsuarioRegistro  INT NULL,
+    CONSTRAINT UQ_FactProv_Orden     UNIQUE (IdOrden),
+    CONSTRAINT UQ_FactProv_Nro       UNIQUE (IdProveedor, NroFactura),
+    CONSTRAINT FK_FactProv_Orden     FOREIGN KEY (IdOrden)           REFERENCES dbo.OrdenesCompra(IdOrden),
+    CONSTRAINT FK_FactProv_Proveedor FOREIGN KEY (IdProveedor)       REFERENCES dbo.Proveedores(IdProveedor),
+    CONSTRAINT FK_FactProv_Insumo    FOREIGN KEY (IdInsumo)          REFERENCES dbo.Insumos(IdInsumo),
+    CONSTRAINT FK_FactProv_Usuario   FOREIGN KEY (IdUsuarioRegistro) REFERENCES dbo.Usuarios(IdUsuario),
+    CONSTRAINT CK_FactProv_Importes  CHECK (CantidadFacturada > 0 AND PrecioUnitario > 0)
+);
+GO
+
+/* 8.7) La recepcion queda ligada a la factura del proveedor */
+DECLARE @cRec BIT = 0;
+IF COL_LENGTH(N'dbo.RecepcionesInsumos', N'IdFacturaProveedor') IS NULL
+BEGIN ALTER TABLE dbo.RecepcionesInsumos ADD IdFacturaProveedor INT NULL; SET @cRec = 1; END;
+IF @cRec = 1
+    UPDATE dbo.DigitoVerificador SET DVH = '0', DVV = '0', FechaCalculo = GETDATE(), Valido = 1
+     WHERE NombreTabla = 'RecepcionesInsumos';
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Recepcion_FacturaProv')
+    ALTER TABLE dbo.RecepcionesInsumos WITH CHECK
+        ADD CONSTRAINT FK_Recepcion_FacturaProv FOREIGN KEY (IdFacturaProveedor) REFERENCES dbo.FacturasProveedor(IdFacturaProveedor);
+GO
+
+/* Indices de consulta */
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Cotizaciones_Estado' AND object_id = OBJECT_ID(N'dbo.Cotizaciones'))
+    CREATE INDEX IX_Cotizaciones_Estado ON dbo.Cotizaciones (Estado, FechaCotizacion);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_PreOrdenes_Estado' AND object_id = OBJECT_ID(N'dbo.PreOrdenesCompra'))
+    CREATE INDEX IX_PreOrdenes_Estado ON dbo.PreOrdenesCompra (Estado, FechaPreOrden);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_PagosProv_PreOrden' AND object_id = OBJECT_ID(N'dbo.PagosProveedor'))
+    CREATE INDEX IX_PagosProv_PreOrden ON dbo.PagosProveedor (IdPreOrden, Estado);
+GO
+
+/* 8.8) Bitacora: eventos del flujo nuevo */
+DECLARE @mod2 INT = (SELECT TOP 1 IdModulo FROM dbo.Modulos WHERE Nombre = N'Reposición de insumos');
+DECLARE @ev2 TABLE (Nombre NVARCHAR(150), Criticidad INT);
+INSERT INTO @ev2 VALUES
+ (N'Cotización registrada',               4),
+ (N'Cotización anulada',                  3),
+ (N'Pre-orden de compra generada',        4),
+ (N'Proveedor nuevo registrado',          3),
+ (N'Pago a proveedor realizado',          3),
+ (N'Pago a proveedor rechazado',          2),
+ (N'Factura de proveedor registrada',     4);
+INSERT INTO dbo.TiposEvento (IdModulo, Nombre, Criticidad)
+SELECT @mod2, e.Nombre, e.Criticidad FROM @ev2 e
+WHERE @mod2 IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM dbo.TiposEvento t WHERE t.IdModulo = @mod2 AND t.Nombre = e.Nombre);
+GO
+
+/* 8.9) Permisos del flujo nuevo (los de validar y reembolso dejan de usarse) */
+DECLARE @cambios2 BIT = 0;
+DECLARE @perm2 TABLE (Nombre NVARCHAR(100), Descripcion NVARCHAR(300));
+INSERT INTO @perm2 VALUES
+ (N'Realizar cotización',              N'Cotizar un insumo con varios proveedores y comparar precios'),
+ (N'Generar pre-orden de compra',      N'Generar la pre-orden con el proveedor elegido de la cotización'),
+ (N'Registrar proveedor nuevo',        N'Registrar los datos bancarios de un proveedor al que nunca se le pagó'),
+ (N'Registrar insumos recibidos',      N'Registrar los productos y la factura recibidos y actualizar el stock');
+INSERT INTO dbo.Permisos (Nombre, Descripcion, Activo)
+SELECT p.Nombre, p.Descripcion, 1 FROM @perm2 p
+WHERE NOT EXISTS (SELECT 1 FROM dbo.Permisos x WHERE x.Nombre = p.Nombre);
+IF @@ROWCOUNT > 0 SET @cambios2 = 1;
+
+UPDATE dbo.Permisos SET Descripcion = N'Pagar al proveedor por transferencia bancaria y emitir la orden de compra'
+ WHERE Nombre = N'Realizar compra de insumos' AND Descripcion <> N'Pagar al proveedor por transferencia bancaria y emitir la orden de compra';
+IF @@ROWCOUNT > 0 SET @cambios2 = 1;
+
+DECLARE @mat2 TABLE (Rol NVARCHAR(50), Permiso NVARCHAR(100));
+INSERT INTO @mat2 VALUES
+ (N'Administrador',        N'Realizar cotización'),
+ (N'Administrador',        N'Generar pre-orden de compra'),
+ (N'Administrador',        N'Registrar proveedor nuevo'),
+ (N'Administrador',        N'Registrar insumos recibidos'),
+ (N'Encargado de Almacén', N'Realizar cotización'),
+ (N'Encargado de Almacén', N'Generar pre-orden de compra'),
+ (N'Encargado de Almacén', N'Registrar insumos recibidos'),
+ (N'Encargado de Compras', N'Registrar proveedor nuevo');
+INSERT INTO dbo.RolPermisos (IdRol, IdPermiso)
+SELECT r.IdRol, p.IdPermiso
+FROM @mat2 m
+JOIN dbo.Roles    r ON r.Nombre = m.Rol
+JOIN dbo.Permisos p ON p.Nombre = m.Permiso
+WHERE NOT EXISTS (SELECT 1 FROM dbo.RolPermisos rp WHERE rp.IdRol = r.IdRol AND rp.IdPermiso = p.IdPermiso);
+IF @@ROWCOUNT > 0 SET @cambios2 = 1;
+
+IF @cambios2 = 1
+    UPDATE dbo.DigitoVerificador
+       SET DVH = '0', DVV = '0', FechaCalculo = GETDATE(), Valido = 1
+     WHERE NombreTabla IN ('Roles', 'Permisos', 'RolPermisos');
+GO
+
+/* 8.10) Digito verificador de las tablas nuevas (arrancan en '0' = estado inicial) */
+INSERT INTO dbo.DigitoVerificador (NombreTabla, DVH, DVV, FechaCalculo, Valido)
+SELECT v.t, '0', '0', GETDATE(), 1
+FROM (VALUES ('Cotizaciones'), ('CotizacionesDetalle'), ('PreOrdenesCompra'),
+             ('PagosProveedor'), ('FacturasProveedor')) v(t)
+WHERE v.t NOT IN (SELECT NombreTabla FROM dbo.DigitoVerificador);
+GO
+
 /* Verificacion rapida */
 SELECT Nombre FROM dbo.Modulos ORDER BY IdModulo;
 SELECT NombreTabla, DVH, DVV, Valido FROM dbo.DigitoVerificador ORDER BY IdDV;
+SELECT name FROM sys.tables WHERE name IN (N'Cotizaciones', N'CotizacionesDetalle', N'PreOrdenesCompra', N'PagosProveedor', N'FacturasProveedor');
 GO

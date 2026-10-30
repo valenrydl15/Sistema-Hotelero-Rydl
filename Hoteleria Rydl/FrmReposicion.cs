@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
 using BLL_HRS_480;
@@ -11,68 +12,61 @@ using SEGURIDAD_HRS_480;
 namespace GUI_HRS_480
 {
     /// <summary>
-    /// Pantalla del proceso PN2 "Gestión de reposición de insumos" (la "GUI" de los DSS CUN06 a CUN11).
-    /// Una sección por caso de uso: stock/solicitud, validar, comprar (incluye seleccionar proveedor),
-    /// recepción y reembolso; más órdenes y avisos. Solo habla con las BLL.
+    /// Pantalla del proceso PN2 "Gestión de reposición de insumos" (la "GUI" de los DSS CUN06 a CUN10).
+    /// Una sección por caso de uso: cotización (CUN06), pre-orden (CUN07), compra con registro de proveedor
+    /// nuevo y pago (CUN08/CUN09) y recepción con factura (CUN10); más órdenes y avisos. Solo habla con las BLL.
     /// </summary>
     public class FrmReposicion : Form
     {
         private readonly StockBLL _stock = new StockBLL();
-        private readonly SolicitudCompraBLL _solicitudes = new SolicitudCompraBLL();
+        private readonly CotizacionBLL _cotizaciones = new CotizacionBLL();
+        private readonly PreOrdenBLL _preordenes = new PreOrdenBLL();
         private readonly ProveedorBLL _proveedores = new ProveedorBLL();
         private readonly OrdenCompraBLL _ordenes = new OrdenCompraBLL();
         private readonly RecepcionBLL _recepciones = new RecepcionBLL();
-        private readonly ReembolsoBLL _reembolsos = new ReembolsoBLL();
         private readonly NotificacionBLL _avisos = new NotificacionBLL();
+        private readonly ReporteBLL _reportes = new ReporteBLL();
 
         // Estructura
         private Panel pnlHeader, pnlSecciones;
         private Label lblTitulo, lblUsuario, lblMensaje;
         private readonly Dictionary<string, Panel> _paneles = new Dictionary<string, Panel>();
         private readonly Dictionary<string, Button> _botones = new Dictionary<string, Button>();
-        private string _actual = "stock";
 
-        // CUN06 Stock + solicitud
-        private DataGridView dgvStock;
+        // CUN06 Stock + cotización
+        private DataGridView dgvStock, dgvOfertas;
         private CheckBox chkCriticos;
-        private Label lblInsumoSel, lblStockInfo, lblPermisoSolicitud;
-        private NumericUpDown numCantSolicitud;
-        private ComboBox cmbPrioridad;
-        private TextBox txtObsSolicitud;
-        private Button btnGenerarSolicitud;
+        private Label lblInsumoSel, lblStockInfo, lblUltimoPrecio, lblMejorOferta, lblPermisoCotizar;
+        private NumericUpDown numCantCotizar;
+        private TextBox txtObsCotizacion;
+        private Button btnRegistrarCotizacion;
 
-        // CUN07 Validar
-        private DataGridView dgvPendientes;
-        private Label lblDetallePendiente;
-        private TextBox txtMotivoValidacion;
-        private Button btnAprobar, btnRechazar;
+        // CUN07 Pre-orden
+        private DataGridView dgvCotizaciones, dgvComparacion;
+        private Label lblDetallePreOrden;
+        private ComboBox cmbPrioridad;
+        private TextBox txtObsPreOrden;
+        private Button btnGenerarPreOrden, btnAnularCotizacion;
 
         // CUN08 / CUN09 Comprar
-        private DataGridView dgvAprobadas;
-        private Label lblDetalleCompra, lblCondiciones, lblTotalCompra;
-        private ComboBox cmbProveedor;
-        private NumericUpDown numPrecio, numPlazo;
-        private TextBox txtDireccion;
-        private Button btnEmitirOrden;
+        private DataGridView dgvPreOrdenes;
+        private Label lblDetalleCompra, lblEstadoProveedor, lblTotalCompra;
+        private Panel pnlRegistroProveedor;
+        private TextBox txtCuit, txtCbu, txtBanco, txtEmailProv, txtDireccion;
+        private Button btnRegistrarProveedor, btnPagar;
 
         // CUN10 Recepción
         private DataGridView dgvARecibir;
-        private Label lblDetalleRecepcion;
-        private NumericUpDown numRecibida;
-        private TextBox txtObsRecepcion;
+        private Label lblDetalleRecepcion, lblControl;
+        private TextBox txtNroFactura, txtObsRecepcion;
+        private DateTimePicker dtpFechaFactura;
+        private NumericUpDown numCantFacturada, numPrecioFacturado, numRecibida;
         private Button btnRegistrarRecepcion;
-
-        // CUN11 Reembolso
-        private DataGridView dgvConDiferencia, dgvReembolsos;
-        private Label lblDetalleReembolso;
-        private TextBox txtMotivoReembolso;
-        private Button btnRegistrarReembolso;
 
         // Órdenes y avisos
         private DataGridView dgvOrdenes, dgvAvisos;
         private ComboBox cmbFiltroOrden;
         private Button btnReenviar, btnMarcarLeidas, btnExportarOrden, btnExportarListadoOrdenes;
-        private readonly ReporteBLL _reportes = new ReporteBLL();
 
         public FrmReposicion()
         {
@@ -81,7 +75,7 @@ namespace GUI_HRS_480
             {
                 lblUsuario.Text = $"{SesionManager.Instancia.UsuarioActual?.Nombre} {SesionManager.Instancia.UsuarioActual?.Apellido}  ·  {SesionManager.Instancia.UsuarioActual?.NombreRol}";
                 AplicarPermisos();
-                IrA("stock");
+                IrA("cotizar");
             };
         }
 
@@ -124,25 +118,24 @@ namespace GUI_HRS_480
 
             var def = new[]
             {
-                ("stock", "Stock y solicitud"), ("validar", "Validar"), ("comprar", "Comprar"),
-                ("recepcion", "Recepción"), ("reembolso", "Reembolsos"), ("ordenes", "Órdenes"), ("avisos", "Avisos")
+                ("cotizar", "Stock y cotización"), ("preorden", "Pre-orden"), ("comprar", "Comprar"),
+                ("recepcion", "Recepción"), ("ordenes", "Órdenes"), ("avisos", "Avisos")
             };
             int x = 24;
             foreach (var (clave, texto) in def)
             {
-                var b = new Button { Text = texto, Size = new Size(142, 38), Location = new Point(x, 10) };
+                var b = new Button { Text = texto, Size = new Size(160, 38), Location = new Point(x, 10) };
                 string k = clave;
                 b.Click += (s, e) => IrA(k);
                 pnlSecciones.Controls.Add(b);
                 _botones[clave] = b;
-                x += 148;
+                x += 166;
             }
 
-            ConstruirStock();
-            ConstruirValidar();
+            ConstruirCotizacion();
+            ConstruirPreOrden();
             ConstruirComprar();
             ConstruirRecepcion();
-            ConstruirReembolso();
             ConstruirOrdenes();
             ConstruirAvisos();
 
@@ -163,7 +156,6 @@ namespace GUI_HRS_480
 
         private void IrA(string clave)
         {
-            _actual = clave;
             foreach (var kv in _paneles) kv.Value.Visible = kv.Key == clave;
             foreach (var kv in _botones)
             {
@@ -173,38 +165,35 @@ namespace GUI_HRS_480
             Mensaje("", null);
             switch (clave)
             {
-                case "stock": CargarStock(); break;
-                case "validar": CargarPendientes(); break;
-                case "comprar": CargarAprobadas(); break;
+                case "cotizar": CargarStock(); break;
+                case "preorden": CargarCotizaciones(); break;
+                case "comprar": CargarPreOrdenes(); break;
                 case "recepcion": CargarARecibir(); break;
-                case "reembolso": CargarReembolsos(); break;
                 case "ordenes": CargarOrdenes(); break;
                 case "avisos": CargarAvisos(); break;
             }
             ActualizarContadorAvisos();
         }
 
+        /// <summary>Cada rol ve solo las secciones de sus casos de uso (la BLL vuelve a validar).</summary>
         private void AplicarPermisos()
         {
-            bool compras = ControlAcceso.PuedeGestionarCompras();
-            _botones["validar"].Visible = compras;
-            _botones["comprar"].Visible = compras;
-            _botones["reembolso"].Visible = compras;
+            _botones["preorden"].Visible = ControlAcceso.PuedeGenerarPreOrden();
+            _botones["comprar"].Visible = ControlAcceso.PuedeRealizarCompra();
             _botones["recepcion"].Visible = ControlAcceso.PuedeRegistrarRecepcionInsumos();
 
-            // Reacomoda los botones visibles
             int x = 24;
             foreach (var b in _botones.Values.Where(b => b.Visible))
             {
                 b.Location = new Point(x, 10);
-                x += 148;
+                x += 166;
             }
 
-            bool puedeSolicitar = ControlAcceso.PuedeGenerarSolicitud();
-            btnGenerarSolicitud.Enabled = puedeSolicitar;
-            numCantSolicitud.Enabled = cmbPrioridad.Enabled = txtObsSolicitud.Enabled = puedeSolicitar;
-            lblPermisoSolicitud.Visible = !puedeSolicitar;
-            if (!puedeSolicitar) { btnGenerarSolicitud.BackColor = Tema.Borde; btnGenerarSolicitud.ForeColor = Tema.TextoSuave; }
+            // Compras puede consultar el stock pero no cotizar
+            bool puedeCotizar = ControlAcceso.PuedeRealizarCotizacion();
+            btnRegistrarCotizacion.Enabled = numCantCotizar.Enabled = txtObsCotizacion.Enabled = dgvOfertas.Enabled = puedeCotizar;
+            lblPermisoCotizar.Visible = !puedeCotizar;
+            if (!puedeCotizar) { btnRegistrarCotizacion.BackColor = Tema.Borde; btnRegistrarCotizacion.ForeColor = Tema.TextoSuave; }
         }
 
         private void Mensaje(string texto, bool? ok)
@@ -236,6 +225,17 @@ namespace GUI_HRS_480
             };
             padre.Controls.Add(l);
             return l;
+        }
+
+        private static TextBox Caja(Control padre, int x, int y, int w, int max, int h = 26)
+        {
+            var t = new TextBox
+            {
+                Location = new Point(x, y), Size = new Size(w, h), MaxLength = max, Font = Tema.Fuente(10),
+                BorderStyle = BorderStyle.FixedSingle, Multiline = h > 30
+            };
+            padre.Controls.Add(t);
+            return t;
         }
 
         private static NumericUpDown Numero(Control padre, int x, int y, int w, int decimales, decimal max)
@@ -276,51 +276,67 @@ namespace GUI_HRS_480
         private static string N(decimal d) => d.ToString("0.##");
         private static string Plata(decimal d) => "$ " + d.ToString("N2");
 
-        // ═════════════════════════════════════════════════════════
-        // CUN06 · Stock y generar solicitud
-        // ═════════════════════════════════════════════════════════
-        private void ConstruirStock()
+        private static decimal LeerDecimal(object valor)
         {
-            var sec = NuevaSeccion("stock");
-            var izq = Tema.Card("Stock de insumos", 24, 6, 650, 560);
+            string s = (valor?.ToString() ?? "").Replace("$", "").Trim();
+            if (decimal.TryParse(s, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal d)) return d;
+            if (decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out d)) return d;
+            return 0;
+        }
+
+        // ═════════════════════════════════════════════════════════
+        // CUN06 · Stock y realizar cotización
+        // ═════════════════════════════════════════════════════════
+        private void ConstruirCotizacion()
+        {
+            var sec = NuevaSeccion("cotizar");
+            var izq = Tema.Card("Stock de insumos", 24, 6, 560, 560);
             izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             chkCriticos = new CheckBox { Text = "Mostrar solo insumos críticos", AutoSize = true, Location = new Point(18, 52), ForeColor = Tema.Texto };
             chkCriticos.CheckedChanged += (s, e) => CargarStock();
-            var btnAct = new Button { Text = "Actualizar", Size = new Size(110, 30), Location = new Point(520, 46), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            var btnAct = new Button { Text = "Actualizar", Size = new Size(110, 30), Location = new Point(430, 46), Anchor = AnchorStyles.Top | AnchorStyles.Right };
             Tema.BotonSecundario(btnAct);
             btnAct.Click += (s, e) => CargarStock();
-            dgvStock = Grilla(izq, 18, 88, 614, 454, ("Insumo", 38), ("Stock actual", 17), ("Mínimo", 14), ("Unidad", 15), ("Estado", 16));
+            dgvStock = Grilla(izq, 18, 88, 524, 454, ("Insumo", 38), ("Stock", 15), ("Mínimo", 14), ("Unidad", 16), ("Estado", 17));
             dgvStock.SelectionChanged += (s, e) => StockSeleccionado();
             izq.Controls.Add(chkCriticos);
             izq.Controls.Add(btnAct);
 
-            var der = Tema.Card("Nueva solicitud de compra", 694, 6, 400, 560);
+            var der = Tema.Card("Realizar cotización", 604, 6, 490, 560);
             der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            Etiqueta(der, "Insumo seleccionado", 18, 56);
-            lblInsumoSel = Texto(der, 18, 74, 364, 24, true);
-            lblStockInfo = Texto(der, 18, 98, 364, 40);
+            lblInsumoSel = Texto(der, 18, 50, 454, 22, true);
+            lblStockInfo = Texto(der, 18, 72, 454, 20);
             lblStockInfo.ForeColor = Tema.TextoSuave;
-            Etiqueta(der, "Cantidad a solicitar", 18, 148);
-            numCantSolicitud = Numero(der, 18, 168, 170, 2, 9999999);
-            Etiqueta(der, "Prioridad", 208, 148);
-            cmbPrioridad = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(208, 168), Size = new Size(174, 26), Font = Tema.Fuente(10) };
-            cmbPrioridad.Items.AddRange(new object[] { "Baja", "Normal", "Alta", "Urgente" });
-            cmbPrioridad.SelectedItem = "Normal";
-            der.Controls.Add(cmbPrioridad);
-            Etiqueta(der, "Observaciones (opcional)", 18, 210);
-            txtObsSolicitud = new TextBox { Location = new Point(18, 230), Size = new Size(364, 90), Multiline = true, MaxLength = 300, Font = Tema.Fuente(10), BorderStyle = BorderStyle.FixedSingle };
-            der.Controls.Add(txtObsSolicitud);
-            btnGenerarSolicitud = new Button { Text = "Generar solicitud de compra", Location = new Point(18, 340), Size = new Size(364, 42) };
-            Tema.BotonDorado(btnGenerarSolicitud);
-            btnGenerarSolicitud.Click += (s, e) => GenerarSolicitud();
-            der.Controls.Add(btnGenerarSolicitud);
-            lblPermisoSolicitud = Texto(der, 18, 392, 364, 40);
-            lblPermisoSolicitud.Text = "Su rol puede consultar el stock, pero no generar solicitudes.";
-            lblPermisoSolicitud.ForeColor = Tema.TextoSuave;
-            Texto(der, 18, 450, 364, 90).Text =
-                "Al generar la solicitud, el área de Compras recibe un aviso para validarla. " +
-                "No se puede pedir un insumo que ya tiene una solicitud pendiente o aprobada.";
-            der.Controls[der.Controls.Count - 1].ForeColor = Tema.TextoSuave;
+            Etiqueta(der, "Cantidad a cotizar", 18, 98);
+            numCantCotizar = Numero(der, 18, 116, 160, 2, 9999999);
+            numCantCotizar.ValueChanged += (s, e) => RecalcularOfertas();
+            lblUltimoPrecio = Texto(der, 196, 120, 276, 22);
+            lblUltimoPrecio.ForeColor = Tema.TextoSuave;
+
+            Etiqueta(der, "Precios informados por cada proveedor (dejá en 0 los que no cotizaron)", 18, 152);
+            dgvOfertas = Grilla(der, 18, 172, 454, 176, ("Proveedor", 42), ("Precio unit. ($)", 22), ("Plazo (días)", 16), ("Subtotal", 22));
+            dgvOfertas.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            dgvOfertas.ReadOnly = false;
+            dgvOfertas.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            dgvOfertas.EditMode = DataGridViewEditMode.EditOnEnter;
+            dgvOfertas.Columns[0].ReadOnly = true;
+            dgvOfertas.Columns[3].ReadOnly = true;
+            dgvOfertas.Columns[1].DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 235);
+            dgvOfertas.Columns[2].DefaultCellStyle.BackColor = Color.FromArgb(255, 250, 235);
+            dgvOfertas.CellEndEdit += (s, e) => RecalcularOfertas();
+            dgvOfertas.DataError += (s, e) => { e.ThrowException = false; };
+
+            lblMejorOferta = Texto(der, 18, 354, 454, 40, true);
+            lblMejorOferta.ForeColor = Tema.Exito;
+            Etiqueta(der, "Observaciones (opcional)", 18, 398);
+            txtObsCotizacion = Caja(der, 18, 416, 454, 300, 44);
+            btnRegistrarCotizacion = new Button { Text = "Registrar cotización", Location = new Point(18, 470), Size = new Size(454, 42) };
+            Tema.BotonDorado(btnRegistrarCotizacion);
+            btnRegistrarCotizacion.Click += (s, e) => RegistrarCotizacion();
+            der.Controls.Add(btnRegistrarCotizacion);
+            lblPermisoCotizar = Texto(der, 18, 518, 454, 36);
+            lblPermisoCotizar.Text = "Su rol puede consultar el stock, pero la cotización la realiza el Encargado de Depósito.";
+            lblPermisoCotizar.ForeColor = Tema.TextoSuave;
 
             sec.Controls.Add(izq);
             sec.Controls.Add(der);
@@ -338,6 +354,14 @@ namespace GUI_HRS_480
                 celda.Style.ForeColor = i.Estado == "Critico" ? Tema.Peligro : Tema.Exito;
                 celda.Style.Font = Tema.Fuente(9.5f, FontStyle.Bold);
             }
+
+            // Una fila por proveedor activo para cargar lo que cotizó cada uno
+            dgvOfertas.Rows.Clear();
+            var pr = _proveedores.ObtenerProveedoresActivos();
+            if (pr.Exito)
+                foreach (var p in pr.Dato)
+                    Fila(dgvOfertas, p, p.Nombre, "0", "7", "");
+
             int crit = r.Dato.Count(i => i.Estado == "Critico");
             Mensaje($"{r.Dato.Count} insumos · {crit} en estado crítico.", null);
             StockSeleccionado();
@@ -346,247 +370,387 @@ namespace GUI_HRS_480
         private void StockSeleccionado()
         {
             var i = Seleccion<InsumoBE>(dgvStock);
-            if (i == null) { lblInsumoSel.Text = "(seleccioná un insumo de la lista)"; lblStockInfo.Text = ""; return; }
+            if (i == null) { lblInsumoSel.Text = "(seleccioná un insumo de la lista)"; lblStockInfo.Text = ""; lblUltimoPrecio.Text = ""; return; }
             lblInsumoSel.Text = i.Nombre;
             lblStockInfo.Text = $"Stock {N(i.StockActual)} {i.UnidadMedida} · mínimo {N(i.StockMinimo)} · {(i.Estado == "Critico" ? "CRÍTICO" : "normal")}";
             decimal sugerida = Math.Max(1, i.StockMinimo * 2 - i.StockActual);
-            numCantSolicitud.Value = Math.Min(numCantSolicitud.Maximum, sugerida);
-            cmbPrioridad.SelectedItem = i.Estado == "Critico" ? "Alta" : "Normal";
+            numCantCotizar.Value = Math.Min(numCantCotizar.Maximum, sugerida);
+            decimal? ultimo = _cotizaciones.ObtenerUltimoPrecio(i.IdInsumo);
+            lblUltimoPrecio.Text = ultimo.HasValue ? $"Último precio pagado: {Plata(ultimo.Value)}" : "Sin compras anteriores de este insumo";
+            RecalcularOfertas();
         }
 
-        private void GenerarSolicitud()
+        private List<CotizacionDetalleBE> OfertasCargadas()
         {
-            var i = Seleccion<InsumoBE>(dgvStock);
-            if (i == null) { Mensaje("Seleccioná un insumo.", false); return; }
-
-            var r = _solicitudes.GenerarSolicitud(new SolicitudCompraBE
+            var lista = new List<CotizacionDetalleBE>();
+            foreach (DataGridViewRow row in dgvOfertas.Rows)
             {
-                IdInsumo = i.IdInsumo,
-                CantidadSolicitada = numCantSolicitud.Value,
-                Prioridad = cmbPrioridad.SelectedItem?.ToString() ?? "Normal",
-                Observaciones = txtObsSolicitud.Text
-            });
-            Mensaje(r.Exito ? $"✔ SC-{r.Dato.IdSolicitud:D4}: {r.Mensaje}" : "✖ " + r.Mensaje, r.Exito);
-            if (r.Exito)
-            {
-                txtObsSolicitud.Clear();
-                MessageBox.Show(
-                    $"Solicitud SC-{r.Dato.IdSolicitud:D4}\n\nInsumo: {r.Dato.NombreInsumo}\nCantidad: {N(r.Dato.CantidadSolicitada)} {r.Dato.UnidadMedida}\n" +
-                    $"Fecha: {r.Dato.FechaSolicitud:dd/MM/yyyy HH:mm}\nPrioridad: {r.Dato.Prioridad}\n\nCompras fue notificado.",
-                    "Solicitud generada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (!(row.Tag is ProveedorBE p)) continue;
+                decimal precio = LeerDecimal(row.Cells[1].Value);
+                if (precio <= 0) continue;
+                lista.Add(new CotizacionDetalleBE
+                {
+                    IdProveedor = p.IdProveedor,
+                    NombreProveedor = p.Nombre,
+                    PrecioUnitario = precio,
+                    PlazoDias = (int)Math.Round(LeerDecimal(row.Cells[2].Value)),
+                    Subtotal = Math.Round(precio * numCantCotizar.Value, 2)
+                });
             }
-            ActualizarContadorAvisos();
+            return lista;
         }
 
-        // ═════════════════════════════════════════════════════════
-        // CUN07 · Validar solicitud
-        // ═════════════════════════════════════════════════════════
-        private void ConstruirValidar()
+        private void RecalcularOfertas()
         {
-            var sec = NuevaSeccion("validar");
-            var izq = Tema.Card("Solicitudes pendientes de validación", 24, 6, 700, 560);
-            izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dgvPendientes = Grilla(izq, 18, 56, 664, 486, ("Nro", 11), ("Fecha", 19), ("Insumo", 22), ("Cantidad", 17), ("Prioridad", 12), ("Presupuesto", 15), ("Solicitó", 14));
-            dgvPendientes.SelectionChanged += (s, e) => PendienteSeleccionada();
-
-            var der = Tema.Card("Decisión", 744, 6, 350, 560);
-            der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            lblDetallePendiente = Texto(der, 18, 56, 314, 150);
-            Etiqueta(der, "Motivo (obligatorio si se rechaza)", 18, 220);
-            txtMotivoValidacion = new TextBox { Location = new Point(18, 240), Size = new Size(314, 90), Multiline = true, MaxLength = 250, Font = Tema.Fuente(10), BorderStyle = BorderStyle.FixedSingle };
-            der.Controls.Add(txtMotivoValidacion);
-            btnAprobar = new Button { Text = "Aprobar solicitud", Location = new Point(18, 350), Size = new Size(314, 42) };
-            Tema.BotonPrimario(btnAprobar); btnAprobar.BackColor = Tema.Exito;
-            btnAprobar.Click += (s, e) => Validar(true);
-            btnRechazar = new Button { Text = "Rechazar solicitud", Location = new Point(18, 402), Size = new Size(314, 42) };
-            Tema.BotonPrimario(btnRechazar); btnRechazar.BackColor = Tema.Peligro;
-            btnRechazar.Click += (s, e) => Validar(false);
-            der.Controls.Add(btnAprobar);
-            der.Controls.Add(btnRechazar);
-
-            sec.Controls.Add(izq);
-            sec.Controls.Add(der);
+            var ofertas = OfertasCargadas();
+            var mejor = ofertas.OrderBy(o => o.PrecioUnitario).ThenBy(o => o.PlazoDias).FirstOrDefault();
+            foreach (DataGridViewRow row in dgvOfertas.Rows)
+            {
+                var p = row.Tag as ProveedorBE;
+                decimal precio = LeerDecimal(row.Cells[1].Value);
+                row.Cells[3].Value = precio > 0 ? Plata(precio * numCantCotizar.Value) : "";
+                bool esMejor = mejor != null && p != null && p.IdProveedor == mejor.IdProveedor;
+                row.DefaultCellStyle.Font = Tema.Fuente(9.5f, esMejor ? FontStyle.Bold : FontStyle.Regular);
+                row.Cells[0].Value = (p?.Nombre ?? "") + (esMejor ? "  ★" : "");
+            }
+            lblMejorOferta.Text = mejor == null ? "" :
+                $"★ Más conveniente: {mejor.NombreProveedor} · {Plata(mejor.Subtotal)} · {mejor.PlazoDias} días" +
+                (ofertas.Count < CotizacionBLL.MIN_PROVEEDORES ? $"\n(cargá al menos {CotizacionBLL.MIN_PROVEEDORES} proveedores)" : "");
         }
 
-        private void CargarPendientes()
+        private void RegistrarCotizacion()
         {
-            var r = _solicitudes.ObtenerSolicitudesPendientes();
-            dgvPendientes.Rows.Clear();
-            if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
-            foreach (var s in r.Dato)
-                Fila(dgvPendientes, s, $"SC-{s.IdSolicitud:D4}", s.FechaSolicitud.ToString("dd/MM/yyyy HH:mm"), s.NombreInsumo,
-                     $"{N(s.CantidadSolicitada)} {s.UnidadMedida}", s.Prioridad,
-                     s.PresupuestoEstimado.HasValue ? Plata(s.PresupuestoEstimado.Value) : "sin dato", s.NombreUsuarioSolic);
-            Mensaje(r.Dato.Count == 0 ? "No hay solicitudes pendientes." : $"{r.Dato.Count} {Plural(r.Dato.Count, "solicitud pendiente", "solicitudes pendientes")} (primero las más urgentes).", null);
-            PendienteSeleccionada();
-        }
+            dgvOfertas.EndEdit();
+            var i = Seleccion<InsumoBE>(dgvStock);
+            if (i == null) { Mensaje("✖ Seleccioná un insumo.", false); return; }
+            var ofertas = OfertasCargadas();
 
-        private void PendienteSeleccionada()
-        {
-            var s = Seleccion<SolicitudCompraBE>(dgvPendientes);
-            btnAprobar.Enabled = btnRechazar.Enabled = s != null;
-            lblDetallePendiente.Text = s == null ? "Seleccioná una solicitud." :
-                $"SC-{s.IdSolicitud:D4}\n\nInsumo: {s.NombreInsumo}\nCantidad: {N(s.CantidadSolicitada)} {s.UnidadMedida}\n" +
-                $"Prioridad: {s.Prioridad}\nPresupuesto estimado: {(s.PresupuestoEstimado.HasValue ? Plata(s.PresupuestoEstimado.Value) : "sin historial de precios")}\n" +
-                $"Solicitó: {s.NombreUsuarioSolic}" + (string.IsNullOrWhiteSpace(s.Observaciones) ? "" : $"\nObs.: {s.Observaciones}");
-        }
-
-        private void Validar(bool aprobar)
-        {
-            var s = Seleccion<SolicitudCompraBE>(dgvPendientes);
-            if (s == null) return;
-            string motivo = txtMotivoValidacion.Text.Trim();
-            if (!aprobar && motivo.Length == 0) { Mensaje("✖ Para rechazar indicá el motivo.", false); txtMotivoValidacion.Focus(); return; }
-
-            if (MessageBox.Show($"¿{(aprobar ? "Aprobar" : "Rechazar")} la solicitud SC-{s.IdSolicitud:D4} ({s.NombreInsumo})?",
-                    "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-
-            var r = _solicitudes.ValidarSolicitud(s.IdSolicitud, aprobar, motivo);
+            var r = _cotizaciones.RegistrarCotizacion(i.IdInsumo, numCantCotizar.Value, ofertas, txtObsCotizacion.Text);
             Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
             if (r.Exito)
             {
-                if (!aprobar) _avisos.NotificarRechazo(s.IdSolicitud, motivo);   // CUN07: rechazo → aviso al solicitante
-                txtMotivoValidacion.Clear();
+                txtObsCotizacion.Clear();
+                var c = r.Dato;
+                string detalle = string.Join("\n", c.Detalles.Select(d =>
+                    $"{(d.MasConveniente ? "★ " : "   ")}{d.NombreProveedor}: {Plata(d.PrecioUnitario)} c/u · {Plata(d.Subtotal)} · {d.PlazoDias} días"));
+                MessageBox.Show(
+                    $"Cotización {c.NroCotizacion}\n\nInsumo: {c.NombreInsumo}\nCantidad: {N(c.Cantidad)} {c.UnidadMedida}\n\n{detalle}\n\n" +
+                    "Siguiente paso: generar la pre-orden con el proveedor elegido (sección Pre-orden).",
+                    "Cotización registrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                CargarStock();
             }
-            CargarPendientes();
-            ActualizarContadorAvisos();
         }
 
         // ═════════════════════════════════════════════════════════
-        // CUN08 · Realizar compra (incluye CUN09 · Seleccionar proveedor)
+        // CUN07 · Generar pre-orden de compra
         // ═════════════════════════════════════════════════════════
-        private void ConstruirComprar()
+        private void ConstruirPreOrden()
         {
-            var sec = NuevaSeccion("comprar");
-            var izq = Tema.Card("Solicitudes aprobadas (sin orden de compra)", 24, 6, 600, 560);
+            var sec = NuevaSeccion("preorden");
+            var izq = Tema.Card("Cotizaciones abiertas", 24, 6, 650, 560);
             izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dgvAprobadas = Grilla(izq, 18, 56, 564, 486, ("Nro", 13), ("Insumo", 30), ("Cantidad", 22), ("Prioridad", 14), ("Presupuesto", 21));
-            dgvAprobadas.SelectionChanged += (s, e) => AprobadaSeleccionada();
+            dgvCotizaciones = Grilla(izq, 18, 56, 614, 210, ("Nro", 14), ("Fecha", 19), ("Insumo", 27), ("Cantidad", 15), ("Prov.", 9), ("Mejor oferta", 18));
+            dgvCotizaciones.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            dgvCotizaciones.SelectionChanged += (s, e) => CotizacionSeleccionada();
+            var lblComp = new Label { Text = "Comparación de ofertas (elegí el proveedor)", AutoSize = true, Font = Tema.Fuente(10.5f, FontStyle.Bold), ForeColor = Tema.Marino, Location = new Point(18, 280) };
+            izq.Controls.Add(lblComp);
+            dgvComparacion = Grilla(izq, 18, 306, 614, 236, ("Proveedor", 36), ("Precio unit.", 18), ("Plazo", 12), ("Total", 20), ("", 14));
+            dgvComparacion.SelectionChanged += (s, e) => OfertaSeleccionada();
 
-            var der = Tema.Card("Orden de compra", 644, 6, 450, 560);
+            var der = Tema.Card("Generar pre-orden", 694, 6, 400, 560);
             der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            lblDetalleCompra = Texto(der, 18, 52, 414, 56, true);
-            Etiqueta(der, "Proveedor", 18, 116);
-            cmbProveedor = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(18, 136), Size = new Size(414, 26), Font = Tema.Fuente(10) };
-            cmbProveedor.SelectedIndexChanged += (s, e) =>
-            {
-                var p = cmbProveedor.SelectedItem as ProveedorBE;
-                lblCondiciones.Text = p == null ? "" : $"Pago: {p.CondicionesPago}  ·  {p.Email}";
-            };
-            der.Controls.Add(cmbProveedor);
-            lblCondiciones = Texto(der, 18, 166, 414, 22);
-            lblCondiciones.ForeColor = Tema.TextoSuave;
-            Etiqueta(der, "Precio unitario ($)", 18, 200);
-            numPrecio = Numero(der, 18, 220, 200, 2, 99999999);
-            numPrecio.ValueChanged += (s, e) => RecalcularTotalCompra();
-            Etiqueta(der, "Plazo de entrega (días)", 238, 200);
-            numPlazo = Numero(der, 238, 220, 194, 0, 365);
-            numPlazo.Value = 7;
-            Etiqueta(der, "Dirección de entrega", 18, 262);
-            txtDireccion = new TextBox { Location = new Point(18, 282), Size = new Size(414, 26), MaxLength = 300, Font = Tema.Fuente(10), BorderStyle = BorderStyle.FixedSingle, Text = OrdenCompraBLL.DIRECCION_ENTREGA_DEFECTO };
-            der.Controls.Add(txtDireccion);
-            lblTotalCompra = Texto(der, 18, 326, 414, 30, true);
-            lblTotalCompra.Font = Tema.Fuente(13, FontStyle.Bold);
-            lblTotalCompra.ForeColor = Tema.Marino;
-            btnEmitirOrden = new Button { Text = "Emitir orden y enviar al proveedor", Location = new Point(18, 372), Size = new Size(414, 44) };
-            Tema.BotonDorado(btnEmitirOrden);
-            btnEmitirOrden.Click += (s, e) => EmitirOrden();
-            der.Controls.Add(btnEmitirOrden);
-            var nota = Texto(der, 18, 432, 414, 100);
-            nota.Text = "La orden se envía por correo al proveedor con la dirección de entrega. " +
-                        "Si el correo no está configurado (correo.txt) el sistema lo simula y guarda una copia en la carpeta Correos_Enviados.";
+            lblDetallePreOrden = Texto(der, 18, 52, 364, 150);
+            Etiqueta(der, "Prioridad", 18, 210);
+            cmbPrioridad = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(18, 228), Size = new Size(170, 26), Font = Tema.Fuente(10) };
+            cmbPrioridad.Items.AddRange(new object[] { "Baja", "Normal", "Alta", "Urgente" });
+            cmbPrioridad.SelectedItem = "Normal";
+            der.Controls.Add(cmbPrioridad);
+            Etiqueta(der, "Observaciones (obligatorias si no elegís la más conveniente)", 18, 266);
+            txtObsPreOrden = Caja(der, 18, 284, 364, 300, 70);
+            btnGenerarPreOrden = new Button { Text = "Generar pre-orden de compra", Location = new Point(18, 370), Size = new Size(364, 42) };
+            Tema.BotonDorado(btnGenerarPreOrden);
+            btnGenerarPreOrden.Click += (s, e) => GenerarPreOrden();
+            der.Controls.Add(btnGenerarPreOrden);
+            btnAnularCotizacion = new Button { Text = "Anular cotización", Location = new Point(18, 420), Size = new Size(364, 34) };
+            Tema.BotonSecundario(btnAnularCotizacion);
+            btnAnularCotizacion.Click += (s, e) => AnularCotizacion();
+            der.Controls.Add(btnAnularCotizacion);
+            var nota = Texto(der, 18, 466, 364, 80);
+            nota.Text = "Al generar la pre-orden, Compras recibe un aviso para pagarla. Si el proveedor nunca cobró, Compras primero lo registra.";
             nota.ForeColor = Tema.TextoSuave;
 
             sec.Controls.Add(izq);
             sec.Controls.Add(der);
         }
 
-        private void CargarAprobadas()
+        private void CargarCotizaciones()
         {
-            var r = _solicitudes.ObtenerSolicitudesAprobadas();
-            dgvAprobadas.Rows.Clear();
+            var r = _cotizaciones.ObtenerCotizacionesAbiertas();
+            dgvCotizaciones.Rows.Clear();
             if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
-            foreach (var s in r.Dato)
-                Fila(dgvAprobadas, s, $"SC-{s.IdSolicitud:D4}", s.NombreInsumo, $"{N(s.CantidadSolicitada)} {s.UnidadMedida}", s.Prioridad,
-                     s.PresupuestoEstimado.HasValue ? Plata(s.PresupuestoEstimado.Value) : "sin dato");
-
-            var pr = _proveedores.ObtenerProveedoresActivos();
-            cmbProveedor.Items.Clear();
-            if (pr.Exito) foreach (var p in pr.Dato) cmbProveedor.Items.Add(p);
-            if (cmbProveedor.Items.Count > 0) cmbProveedor.SelectedIndex = 0;
-
-            Mensaje(r.Dato.Count == 0 ? "No hay solicitudes aprobadas para comprar." : $"{r.Dato.Count} {Plural(r.Dato.Count, "solicitud aprobada espera", "solicitudes aprobadas esperan")} su orden de compra.", null);
-            AprobadaSeleccionada();
-        }
-
-        private void AprobadaSeleccionada()
-        {
-            var s = Seleccion<SolicitudCompraBE>(dgvAprobadas);
-            btnEmitirOrden.Enabled = s != null;
-            lblDetalleCompra.Text = s == null ? "Seleccioná una solicitud aprobada."
-                : $"SC-{s.IdSolicitud:D4} · {s.NombreInsumo}\n{N(s.CantidadSolicitada)} {s.UnidadMedida}";
-            if (s?.PresupuestoEstimado != null && s.CantidadSolicitada > 0)
+            foreach (var c in r.Dato)
             {
-                decimal unit = Math.Round(s.PresupuestoEstimado.Value / s.CantidadSolicitada, 2);
-                if (unit > 0 && unit <= numPrecio.Maximum) numPrecio.Value = unit;   // precio de la última compra como punto de partida
+                var m = c.Detalles.FirstOrDefault(d => d.MasConveniente);
+                Fila(dgvCotizaciones, c, c.NroCotizacion, c.FechaCotizacion.ToString("dd/MM/yyyy HH:mm"), c.NombreInsumo,
+                     $"{N(c.Cantidad)} {c.UnidadMedida}", c.Detalles.Count, m == null ? "-" : Plata(m.Subtotal));
             }
-            RecalcularTotalCompra();
+            Mensaje(r.Dato.Count == 0 ? "No hay cotizaciones abiertas. Cotizá un insumo desde Stock y cotización."
+                                      : $"{r.Dato.Count} {Plural(r.Dato.Count, "cotización abierta", "cotizaciones abiertas")}.", null);
+            CotizacionSeleccionada();
         }
 
-        private void RecalcularTotalCompra()
+        private void CotizacionSeleccionada()
         {
-            var s = Seleccion<SolicitudCompraBE>(dgvAprobadas);
-            lblTotalCompra.Text = s == null ? "" : "Total: " + Plata(s.CantidadSolicitada * numPrecio.Value);
+            var c = Seleccion<CotizacionBE>(dgvCotizaciones);
+            dgvComparacion.Rows.Clear();
+            btnAnularCotizacion.Enabled = c != null;
+            if (c == null) { lblDetallePreOrden.Text = "Seleccioná una cotización."; btnGenerarPreOrden.Enabled = false; return; }
+            foreach (var d in c.Detalles)
+            {
+                Fila(dgvComparacion, d, d.NombreProveedor, Plata(d.PrecioUnitario), d.PlazoDias + " d", Plata(d.Subtotal), d.MasConveniente ? "★ mejor" : "");
+                if (d.MasConveniente)
+                {
+                    var row = dgvComparacion.Rows[dgvComparacion.Rows.Count - 1];
+                    row.DefaultCellStyle.Font = Tema.Fuente(9.5f, FontStyle.Bold);
+                    row.Cells[4].Style.ForeColor = Tema.Exito;
+                }
+            }
+            if (dgvComparacion.Rows.Count > 0) dgvComparacion.CurrentCell = dgvComparacion.Rows[0].Cells[0];
+            OfertaSeleccionada();
         }
 
-        private void EmitirOrden()
+        private void OfertaSeleccionada()
         {
-            var s = Seleccion<SolicitudCompraBE>(dgvAprobadas);
-            var p = cmbProveedor.SelectedItem as ProveedorBE;
-            if (s == null) { Mensaje("✖ Seleccioná una solicitud aprobada.", false); return; }
-            if (p == null) { Mensaje("✖ Seleccioná un proveedor.", false); return; }
+            var c = Seleccion<CotizacionBE>(dgvCotizaciones);
+            var d = Seleccion<CotizacionDetalleBE>(dgvComparacion);
+            btnGenerarPreOrden.Enabled = c != null && d != null;
+            if (c == null || d == null) return;
+            lblDetallePreOrden.Text =
+                $"{c.NroCotizacion} · {c.NombreInsumo}\n{N(c.Cantidad)} {c.UnidadMedida}\n\n" +
+                $"Proveedor elegido: {d.NombreProveedor}\nPrecio unitario: {Plata(d.PrecioUnitario)}\nPlazo: {d.PlazoDias} días\n" +
+                $"Total: {Plata(d.Subtotal)}" + (d.MasConveniente ? "\n★ Es la oferta más conveniente" : "\n⚠ No es la más conveniente: justificalo");
+        }
+
+        private void GenerarPreOrden()
+        {
+            var c = Seleccion<CotizacionBE>(dgvCotizaciones);
+            var d = Seleccion<CotizacionDetalleBE>(dgvComparacion);
+            if (c == null || d == null) { Mensaje("✖ Seleccioná una cotización y el proveedor elegido.", false); return; }
+
+            if (MessageBox.Show($"¿Generar la pre-orden de {N(c.Cantidad)} {c.UnidadMedida} de {c.NombreInsumo} con {d.NombreProveedor} por {Plata(d.Subtotal)}?",
+                    "Confirmar pre-orden", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+            var r = _preordenes.GenerarPreOrden(c.IdCotizacion, d.IdDetalleCotizacion, cmbPrioridad.SelectedItem?.ToString() ?? "Normal", txtObsPreOrden.Text);
+            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
+            if (r.Exito)
+            {
+                txtObsPreOrden.Clear();
+                var po = r.Dato;
+                MessageBox.Show(
+                    $"Pre-orden {po.NroPreOrden}\n\nInsumo: {po.NombreInsumo}\nCantidad: {N(po.Cantidad)} {po.UnidadMedida}\nProveedor: {po.NombreProveedor}\n" +
+                    $"Total: {Plata(po.PrecioTotal)}\nPrioridad: {po.Prioridad}\n\nCompras fue notificado para realizar la compra.",
+                    "Pre-orden generada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            CargarCotizaciones();
+            ActualizarContadorAvisos();
+        }
+
+        private void AnularCotizacion()
+        {
+            var c = Seleccion<CotizacionBE>(dgvCotizaciones);
+            if (c == null) return;
+            string motivo = txtObsPreOrden.Text.Trim();
+            if (motivo.Length == 0) { Mensaje("✖ Escribí en observaciones el motivo de la anulación.", false); txtObsPreOrden.Focus(); return; }
+            if (MessageBox.Show($"¿Anular la cotización {c.NroCotizacion} ({c.NombreInsumo})?", "Confirmar",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+            var r = _cotizaciones.AnularCotizacion(c.IdCotizacion, motivo);
+            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
+            if (r.Exito) txtObsPreOrden.Clear();
+            CargarCotizaciones();
+        }
+
+        // ═════════════════════════════════════════════════════════
+        // CUN09 · Realizar compra (CUN08 · Registrar proveedor nuevo la extiende)
+        // ═════════════════════════════════════════════════════════
+        private void ConstruirComprar()
+        {
+            var sec = NuevaSeccion("comprar");
+            var izq = Tema.Card("Pre-órdenes pendientes de pago", 24, 6, 600, 560);
+            izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dgvPreOrdenes = Grilla(izq, 18, 56, 564, 486, ("Nro", 13), ("Insumo", 21), ("Cantidad", 14), ("Proveedor", 25), ("Total", 18), ("Prioridad", 11));
+            dgvPreOrdenes.SelectionChanged += (s, e) => PreOrdenSeleccionada();
+
+            var der = Tema.Card("Compra de insumos", 644, 6, 450, 560);
+            der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+            lblDetalleCompra = Texto(der, 18, 50, 414, 58, true);
+            lblEstadoProveedor = Texto(der, 18, 110, 414, 40, true);
+
+            // CUN08: solo visible si el proveedor nunca cobró
+            pnlRegistroProveedor = new Panel { Location = new Point(18, 152), Size = new Size(414, 176), BackColor = Color.FromArgb(253, 246, 232) };
+            Etiqueta(pnlRegistroProveedor, "CUIT", 10, 6);
+            txtCuit = Caja(pnlRegistroProveedor, 10, 24, 190, 13);
+            Etiqueta(pnlRegistroProveedor, "CBU (22 dígitos)", 212, 6);
+            txtCbu = Caja(pnlRegistroProveedor, 212, 24, 192, 22);
+            txtCbu.TextChanged += (s, e) =>
+            {
+                string b = SERVICIOS_HRS_480.BancoServicio.BancoDelCBU(txtCbu.Text);
+                if (b.Length > 0) txtBanco.Text = b;
+            };
+            Etiqueta(pnlRegistroProveedor, "Banco", 10, 58);
+            txtBanco = Caja(pnlRegistroProveedor, 10, 76, 190, 100);
+            Etiqueta(pnlRegistroProveedor, "Correo (si no lo tiene)", 212, 58);
+            txtEmailProv = Caja(pnlRegistroProveedor, 212, 76, 192, 200);
+            btnRegistrarProveedor = new Button { Text = "Registrar proveedor nuevo", Location = new Point(10, 120), Size = new Size(394, 40) };
+            Tema.BotonPrimario(btnRegistrarProveedor);
+            btnRegistrarProveedor.Click += (s, e) => RegistrarProveedor();
+            pnlRegistroProveedor.Controls.Add(btnRegistrarProveedor);
+            der.Controls.Add(pnlRegistroProveedor);
+
+            Etiqueta(der, "Dirección de entrega", 18, 338);
+            txtDireccion = Caja(der, 18, 356, 414, 300);
+            txtDireccion.Text = OrdenCompraBLL.DIRECCION_ENTREGA_DEFECTO;
+            lblTotalCompra = Texto(der, 18, 392, 414, 30, true);
+            lblTotalCompra.Font = Tema.Fuente(13, FontStyle.Bold);
+            lblTotalCompra.ForeColor = Tema.Marino;
+            btnPagar = new Button { Text = "Pagar por transferencia y generar orden", Location = new Point(18, 428), Size = new Size(414, 44) };
+            Tema.BotonDorado(btnPagar);
+            btnPagar.Click += (s, e) => Pagar();
+            der.Controls.Add(btnPagar);
+            var nota = Texto(der, 18, 480, 414, 70);
+            nota.Text = "El sistema se conecta con el banco y transfiere el total al CBU del proveedor. Con el pago aprobado " +
+                        "se genera la orden de compra y se le envía al proveedor por correo junto con el comprobante.";
+            nota.ForeColor = Tema.TextoSuave;
+
+            sec.Controls.Add(izq);
+            sec.Controls.Add(der);
+        }
+
+        private void CargarPreOrdenes()
+        {
+            var r = _preordenes.ObtenerPreOrdenesPendientes();
+            dgvPreOrdenes.Rows.Clear();
+            if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
+            foreach (var p in r.Dato)
+            {
+                Fila(dgvPreOrdenes, p, p.NroPreOrden, p.NombreInsumo, $"{N(p.Cantidad)} {p.UnidadMedida}",
+                     p.NombreProveedor + (p.ProveedorNuevo ? " (nuevo)" : ""), Plata(p.PrecioTotal), p.Prioridad);
+                if (p.ProveedorNuevo) dgvPreOrdenes.Rows[dgvPreOrdenes.Rows.Count - 1].Cells[3].Style.ForeColor = Tema.Peligro;
+            }
+            Mensaje(r.Dato.Count == 0 ? "No hay pre-órdenes pendientes de pago."
+                                      : $"{r.Dato.Count} {Plural(r.Dato.Count, "pre-orden espera", "pre-órdenes esperan")} el pago (primero las más urgentes).", null);
+            PreOrdenSeleccionada();
+        }
+
+        private void PreOrdenSeleccionada()
+        {
+            var p = Seleccion<PreOrdenCompraBE>(dgvPreOrdenes);
+            if (p == null)
+            {
+                lblDetalleCompra.Text = "Seleccioná una pre-orden.";
+                lblEstadoProveedor.Text = lblTotalCompra.Text = "";
+                pnlRegistroProveedor.Visible = false;
+                btnPagar.Enabled = false;
+                return;
+            }
+            lblDetalleCompra.Text = $"{p.NroPreOrden} · {p.NombreInsumo}\n{N(p.Cantidad)} {p.UnidadMedida} × {Plata(p.PrecioUnitario)} · {p.PlazoDias} días";
+            lblTotalCompra.Text = "Total a pagar: " + Plata(p.PrecioTotal);
+
+            var prov = _proveedores.ObtenerProveedor(p.IdProveedor);
+            bool nuevo = !prov.Exito || prov.Dato.EsNuevo;
+            pnlRegistroProveedor.Visible = nuevo && ControlAcceso.PuedeRegistrarProveedor();
+            btnPagar.Enabled = !nuevo;
+            if (nuevo)
+            {
+                lblEstadoProveedor.ForeColor = Tema.Peligro;
+                lblEstadoProveedor.Text = "PROVEEDOR NUEVO (nunca se le pagó):\nregistrá su CUIT y CBU para poder pagarle.";
+                txtCuit.Text = prov.Exito ? prov.Dato.CUIT : "";
+                txtCbu.Text = prov.Exito ? prov.Dato.CBU : "";
+                txtEmailProv.Text = prov.Exito ? prov.Dato.Email : "";
+            }
+            else
+            {
+                lblEstadoProveedor.ForeColor = Tema.Exito;
+                lblEstadoProveedor.Text = $"✔ {prov.Dato.Nombre} ya está registrado para pagos.\nCBU {prov.Dato.CBU}{(string.IsNullOrWhiteSpace(prov.Dato.Banco) ? "" : " · " + prov.Dato.Banco)}";
+            }
+        }
+
+        private void RegistrarProveedor()
+        {
+            var p = Seleccion<PreOrdenCompraBE>(dgvPreOrdenes);
+            if (p == null) return;
+            var r = _proveedores.RegistrarProveedorNuevo(new ProveedorBE
+            {
+                IdProveedor = p.IdProveedor,
+                CUIT = txtCuit.Text,
+                CBU = txtCbu.Text,
+                Banco = txtBanco.Text,
+                Email = txtEmailProv.Text
+            });
+            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
+            if (r.Exito) CargarPreOrdenes();
+        }
+
+        private void Pagar()
+        {
+            var p = Seleccion<PreOrdenCompraBE>(dgvPreOrdenes);
+            if (p == null) { Mensaje("✖ Seleccioná una pre-orden.", false); return; }
 
             if (MessageBox.Show(
-                    $"Se emitirá una orden de compra a {p.Nombre}:\n\n{N(s.CantidadSolicitada)} {s.UnidadMedida} de {s.NombreInsumo}\n" +
-                    $"Precio unitario {Plata(numPrecio.Value)} · Total {Plata(s.CantidadSolicitada * numPrecio.Value)}\nPlazo: {numPlazo.Value:0} días\n\n¿Confirmás?",
+                    $"Se transferirán {Plata(p.PrecioTotal)} a {p.NombreProveedor} y se generará la orden de compra:\n\n" +
+                    $"{N(p.Cantidad)} {p.UnidadMedida} de {p.NombreInsumo}\nPrecio unitario {Plata(p.PrecioUnitario)} · Plazo {p.PlazoDias} días\n\n¿Confirmás el pago?",
                     "Confirmar compra", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
-            var r = _ordenes.GenerarOrdenCompra(s.IdSolicitud, p.IdProveedor, numPrecio.Value, (int)numPlazo.Value, txtDireccion.Text);
+            var r = _ordenes.RealizarCompra(p.IdPreOrden, txtDireccion.Text);
             Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
             if (r.Exito)
                 MessageBox.Show(
                     $"Orden {r.Dato.NroOrden}\n\nProveedor: {r.Dato.NombreProveedor}\nInsumo: {r.Dato.NombreInsumo}\nCantidad: {N(r.Dato.Cantidad)}\n" +
-                    $"Precio total: {Plata(r.Dato.PrecioTotal)}\nEmisión: {r.Dato.FechaEmision:dd/MM/yyyy HH:mm}\n\n{r.Mensaje}",
+                    $"Total pagado: {Plata(r.Dato.PrecioTotal)}\nComprobante: {r.Dato.NroOperacionPago}\n\n{r.Mensaje}",
                     "Compra realizada", MessageBoxButtons.OK, r.Dato.FechaEnvio.HasValue ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
-            CargarAprobadas();
+            else
+                MessageBox.Show(r.Mensaje, "No se realizó la compra", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            CargarPreOrdenes();
         }
 
         // ═════════════════════════════════════════════════════════
-        // CUN10 · Registrar recepción de insumos
+        // CUN10 · Registrar insumos recibidos (con la factura del proveedor)
         // ═════════════════════════════════════════════════════════
         private void ConstruirRecepcion()
         {
             var sec = NuevaSeccion("recepcion");
-            var izq = Tema.Card("Órdenes de compra esperando mercadería", 24, 6, 680, 560);
+            var izq = Tema.Card("Órdenes pagadas esperando los insumos", 24, 6, 640, 560);
             izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dgvARecibir = Grilla(izq, 18, 56, 644, 486, ("Orden", 13), ("Emisión", 16), ("Proveedor", 25), ("Insumo", 22), ("Pedido", 12), ("Entrega hasta", 16));
+            dgvARecibir = Grilla(izq, 18, 56, 604, 486, ("Orden", 13), ("Pagada", 14), ("Proveedor", 24), ("Insumo", 22), ("Pedido", 11), ("Entrega hasta", 16));
             dgvARecibir.SelectionChanged += (s, e) => ARecibirSeleccionada();
 
-            var der = Tema.Card("Registrar recepción", 724, 6, 370, 560);
+            var der = Tema.Card("Registrar insumos recibidos", 684, 6, 410, 560);
             der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            lblDetalleRecepcion = Texto(der, 18, 52, 334, 120);
-            Etiqueta(der, "Cantidad realmente recibida", 18, 184);
-            numRecibida = Numero(der, 18, 204, 200, 2, 9999999);
-            Etiqueta(der, "Observaciones (opcional)", 18, 246);
-            txtObsRecepcion = new TextBox { Location = new Point(18, 266), Size = new Size(334, 80), Multiline = true, MaxLength = 300, Font = Tema.Fuente(10), BorderStyle = BorderStyle.FixedSingle };
-            der.Controls.Add(txtObsRecepcion);
-            btnRegistrarRecepcion = new Button { Text = "Registrar recepción", Location = new Point(18, 366), Size = new Size(334, 42) };
+            lblDetalleRecepcion = Texto(der, 18, 48, 374, 84);
+            var lblFac = new Label { Text = "Factura del proveedor", AutoSize = true, Font = Tema.Fuente(10, FontStyle.Bold), ForeColor = Tema.Marino, Location = new Point(18, 134) };
+            der.Controls.Add(lblFac);
+            Etiqueta(der, "Número de factura", 18, 158);
+            txtNroFactura = Caja(der, 18, 176, 180, 30);
+            Etiqueta(der, "Fecha de la factura", 212, 158);
+            dtpFechaFactura = new DateTimePicker { Location = new Point(212, 176), Size = new Size(180, 26), Format = DateTimePickerFormat.Short, Font = Tema.Fuente(10) };
+            der.Controls.Add(dtpFechaFactura);
+            Etiqueta(der, "Cantidad facturada", 18, 210);
+            numCantFacturada = Numero(der, 18, 228, 180, 2, 9999999);
+            Etiqueta(der, "Precio unitario facturado ($)", 212, 210);
+            numPrecioFacturado = Numero(der, 212, 228, 180, 2, 99999999);
+            Etiqueta(der, "Cantidad que realmente llegó", 18, 262);
+            numRecibida = Numero(der, 18, 280, 180, 2, 9999999);
+            numCantFacturada.ValueChanged += (s, e) => ControlarRecepcion();
+            numPrecioFacturado.ValueChanged += (s, e) => ControlarRecepcion();
+            numRecibida.ValueChanged += (s, e) => ControlarRecepcion();
+            lblControl = Texto(der, 18, 312, 374, 62, true);
+            Etiqueta(der, "Observaciones (opcional)", 18, 378);
+            txtObsRecepcion = Caja(der, 18, 396, 374, 300, 48);
+            btnRegistrarRecepcion = new Button { Text = "Registrar insumos recibidos", Location = new Point(18, 452), Size = new Size(374, 42) };
             Tema.BotonDorado(btnRegistrarRecepcion);
             btnRegistrarRecepcion.Click += (s, e) => RegistrarRecepcion();
             der.Controls.Add(btnRegistrarRecepcion);
-            var nota = Texto(der, 18, 424, 334, 110);
-            nota.Text = "Cada orden se recibe una sola vez. El stock se actualiza con lo realmente recibido; " +
-                        "si difiere de lo pedido, Compras recibe un aviso y puede pedir el reembolso.";
+            var nota = Texto(der, 18, 500, 374, 52);
+            nota.Text = "El stock se actualiza con lo que realmente llegó. Si no coincide con la factura o la orden, se avisa a Compras.";
             nota.ForeColor = Tema.TextoSuave;
 
             sec.Controls.Add(izq);
@@ -599,9 +763,9 @@ namespace GUI_HRS_480
             dgvARecibir.Rows.Clear();
             if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
             foreach (var o in r.Dato)
-                Fila(dgvARecibir, o, o.NroOrden, o.FechaEmision.ToString("dd/MM/yyyy"), o.NombreProveedor, o.NombreInsumo, N(o.Cantidad),
+                Fila(dgvARecibir, o, o.NroOrden, (o.FechaPago ?? o.FechaEmision).ToString("dd/MM/yyyy"), o.NombreProveedor, o.NombreInsumo, N(o.Cantidad),
                      o.PlazoDias.HasValue ? o.FechaEmision.AddDays(o.PlazoDias.Value).ToString("dd/MM/yyyy") : "-");
-            Mensaje(r.Dato.Count == 0 ? "No hay órdenes esperando mercadería." : $"{r.Dato.Count} {Plural(r.Dato.Count, "orden espera", "órdenes esperan")} mercadería.", null);
+            Mensaje(r.Dato.Count == 0 ? "No hay órdenes esperando insumos." : $"{r.Dato.Count} {Plural(r.Dato.Count, "orden espera", "órdenes esperan")} los insumos y la factura.", null);
             ARecibirSeleccionada();
         }
 
@@ -609,9 +773,30 @@ namespace GUI_HRS_480
         {
             var o = Seleccion<OrdenCompraBE>(dgvARecibir);
             btnRegistrarRecepcion.Enabled = o != null;
-            lblDetalleRecepcion.Text = o == null ? "Seleccioná una orden." :
-                $"{o.NroOrden}\n\nProveedor: {o.NombreProveedor}\nInsumo: {o.NombreInsumo}\nCantidad pedida: {N(o.Cantidad)}\nTotal: {Plata(o.PrecioTotal)}";
-            if (o != null) numRecibida.Value = Math.Min(numRecibida.Maximum, o.Cantidad);   // por defecto, lo pedido
+            if (o == null) { lblDetalleRecepcion.Text = "Seleccioná una orden."; lblControl.Text = ""; return; }
+            lblDetalleRecepcion.Text =
+                $"{o.NroOrden} · {o.NombreProveedor}\nInsumo: {o.NombreInsumo}\nPedido: {N(o.Cantidad)} × {Plata(o.PrecioUnitario)} = {Plata(o.PrecioTotal)}\n" +
+                (string.IsNullOrWhiteSpace(o.NroOperacionPago) ? "" : $"Pago: {o.NroOperacionPago}");
+            // Por defecto, lo que dice la orden (el depósito corrige lo que no coincida)
+            numCantFacturada.Value = Math.Min(numCantFacturada.Maximum, o.Cantidad);
+            numPrecioFacturado.Value = Math.Min(numPrecioFacturado.Maximum, o.PrecioUnitario);
+            numRecibida.Value = Math.Min(numRecibida.Maximum, o.Cantidad);
+            dtpFechaFactura.Value = DateTime.Today;
+            txtNroFactura.Clear();
+            ControlarRecepcion();
+        }
+
+        /// <summary>Vista previa del control que hace la BLL: orden vs factura vs mercadería.</summary>
+        private void ControlarRecepcion()
+        {
+            var o = Seleccion<OrdenCompraBE>(dgvARecibir);
+            if (o == null) return;
+            var dif = new List<string>();
+            if (numCantFacturada.Value != o.Cantidad) dif.Add($"factura {N(numCantFacturada.Value)} vs orden {N(o.Cantidad)}");
+            if (numPrecioFacturado.Value != o.PrecioUnitario) dif.Add($"precio {Plata(numPrecioFacturado.Value)} vs pagado {Plata(o.PrecioUnitario)}");
+            if (numRecibida.Value != numCantFacturada.Value) dif.Add($"llegaron {N(numRecibida.Value)} vs facturadas {N(numCantFacturada.Value)}");
+            lblControl.ForeColor = dif.Count == 0 ? Tema.Exito : Tema.Peligro;
+            lblControl.Text = dif.Count == 0 ? "✔ Los productos coinciden con la factura y la orden." : "✖ No coincide: " + string.Join("; ", dif) + ".";
         }
 
         private void RegistrarRecepcion()
@@ -619,104 +804,34 @@ namespace GUI_HRS_480
             var o = Seleccion<OrdenCompraBE>(dgvARecibir);
             if (o == null) { Mensaje("✖ Seleccioná una orden.", false); return; }
 
-            string aviso = numRecibida.Value == o.Cantidad ? "" : $"\n\nATENCIÓN: se pidieron {N(o.Cantidad)} y está registrando {N(numRecibida.Value)}.";
-            if (MessageBox.Show($"¿Registrar la recepción de {N(numRecibida.Value)} de {o.NombreInsumo} (orden {o.NroOrden})?{aviso}",
-                    "Confirmar recepción", MessageBoxButtons.YesNo, aviso.Length > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Question) != DialogResult.Yes) return;
+            bool coincide = lblControl.ForeColor == Tema.Exito;
+            if (MessageBox.Show($"¿Registrar la factura {txtNroFactura.Text.Trim()} y {N(numRecibida.Value)} de {o.NombreInsumo} recibidos (orden {o.NroOrden})?" +
+                                (coincide ? "" : "\n\nATENCIÓN: " + lblControl.Text),
+                    "Confirmar recepción", MessageBoxButtons.YesNo, coincide ? MessageBoxIcon.Question : MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
-            var r = _recepciones.RegistrarRecepcion(new RecepcionInsumoBE
+            var r = _recepciones.RegistrarInsumosRecibidos(new RecepcionConFacturaBE
             {
                 IdOrden = o.IdOrden,
+                NroFactura = txtNroFactura.Text,
+                FechaFactura = dtpFechaFactura.Value.Date,
+                CantidadFacturada = numCantFacturada.Value,
+                PrecioUnitarioFacturado = numPrecioFacturado.Value,
                 CantidadRecibida = numRecibida.Value,
                 Observaciones = txtObsRecepcion.Text
             });
             Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
             if (r.Exito)
             {
-                // CUN10: si lo recibido difiere de lo pedido, se avisa a Compras
-                if (r.Dato.Estado == "Con diferencia")
-                    _avisos.NotificarDiferenciaRecepcion(o.IdOrden, r.Dato.CantidadRecibida);
                 txtObsRecepcion.Clear();
-                MessageBox.Show(r.Mensaje + (r.Dato.Estado == "Con diferencia" ? "\n\nSe avisó a Compras de la diferencia." : ""),
-                    "Recepción registrada", MessageBoxButtons.OK,
-                    r.Dato.Estado == "Con diferencia" ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+                MessageBox.Show(r.Mensaje, "Insumos registrados", MessageBoxButtons.OK,
+                    r.Dato.Coincide ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             }
             CargarARecibir();
             ActualizarContadorAvisos();
         }
 
         // ═════════════════════════════════════════════════════════
-        // CUN11 · Registrar solicitud de reembolso
-        // ═════════════════════════════════════════════════════════
-        private void ConstruirReembolso()
-        {
-            var sec = NuevaSeccion("reembolso");
-            var izq = Tema.Card("Órdenes recibidas con diferencia", 24, 6, 700, 560);
-            izq.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dgvConDiferencia = Grilla(izq, 18, 56, 664, 210, ("Orden", 14), ("Proveedor", 30), ("Insumo", 28), ("Pedido", 12), ("Precio unit.", 16));
-            dgvConDiferencia.SelectionChanged += (s, e) => ConDiferenciaSeleccionada();
-            dgvConDiferencia.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            var lblHist = new Label { Text = "Reembolsos registrados", AutoSize = true, Font = Tema.Fuente(10.5f, FontStyle.Bold), ForeColor = Tema.Marino, Location = new Point(18, 282) };
-            izq.Controls.Add(lblHist);
-            dgvReembolsos = Grilla(izq, 18, 308, 664, 234, ("Fecha", 15), ("Orden", 12), ("Insumo", 22), ("Faltante", 11), ("Monto", 15), ("Estado", 12), ("Motivo", 30));
-
-            var der = Tema.Card("Solicitar reembolso", 744, 6, 350, 560);
-            der.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            lblDetalleReembolso = Texto(der, 18, 52, 314, 170);
-            Etiqueta(der, "Motivo del reembolso", 18, 236);
-            txtMotivoReembolso = new TextBox { Location = new Point(18, 256), Size = new Size(314, 90), Multiline = true, MaxLength = 300, Font = Tema.Fuente(10), BorderStyle = BorderStyle.FixedSingle };
-            der.Controls.Add(txtMotivoReembolso);
-            btnRegistrarReembolso = new Button { Text = "Registrar solicitud de reembolso", Location = new Point(18, 366), Size = new Size(314, 42) };
-            Tema.BotonDorado(btnRegistrarReembolso);
-            btnRegistrarReembolso.Click += (s, e) => RegistrarReembolso();
-            der.Controls.Add(btnRegistrarReembolso);
-
-            sec.Controls.Add(izq);
-            sec.Controls.Add(der);
-        }
-
-        private void CargarReembolsos()
-        {
-            var r = _reembolsos.ObtenerOrdenesConDiferencia();
-            dgvConDiferencia.Rows.Clear();
-            if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
-            foreach (var o in r.Dato)
-                Fila(dgvConDiferencia, o, o.NroOrden, o.NombreProveedor, o.NombreInsumo, N(o.Cantidad), Plata(o.PrecioUnitario));
-
-            dgvReembolsos.Rows.Clear();
-            var h = _reembolsos.ObtenerReembolsos();
-            if (h.Exito)
-                foreach (var x in h.Dato)
-                    Fila(dgvReembolsos, x, x.FechaReembolso.ToString("dd/MM/yyyy"), x.NroOrden, x.NombreInsumo, N(x.Diferencia), Plata(x.MontoReembolso), x.Estado, x.Motivo);
-
-            Mensaje(r.Dato.Count == 0 ? "No hay órdenes con diferencia pendientes de reembolso." : $"{r.Dato.Count} {Plural(r.Dato.Count, "orden con diferencia sin reembolso", "órdenes con diferencia sin reembolso")}.", null);
-            ConDiferenciaSeleccionada();
-        }
-
-        private void ConDiferenciaSeleccionada()
-        {
-            var o = Seleccion<OrdenCompraBE>(dgvConDiferencia);
-            btnRegistrarReembolso.Enabled = o != null;
-            if (o == null) { lblDetalleReembolso.Text = "Seleccioná una orden con diferencia."; return; }
-            decimal recibida = _reembolsos.ObtenerCantidadRecibida(o.IdOrden);
-            decimal falta = o.Cantidad - recibida;
-            lblDetalleReembolso.Text =
-                $"{o.NroOrden} · {o.NombreProveedor}\n\nInsumo: {o.NombreInsumo}\nComprado: {N(o.Cantidad)}\nRecibido: {N(recibida)}\n" +
-                (falta > 0 ? $"Faltante: {N(falta)}\nReembolso estimado: {Plata(falta * o.PrecioUnitario)}"
-                           : "Se recibió de más: no corresponde reembolso.");
-        }
-
-        private void RegistrarReembolso()
-        {
-            var o = Seleccion<OrdenCompraBE>(dgvConDiferencia);
-            if (o == null) return;
-            var r = _reembolsos.RegistrarSolicitudReembolso(o.IdOrden, txtMotivoReembolso.Text);
-            Mensaje(r.Exito ? "✔ " + r.Mensaje : "✖ " + r.Mensaje, r.Exito);
-            if (r.Exito) txtMotivoReembolso.Clear();
-            CargarReembolsos();
-        }
-
-        // ═════════════════════════════════════════════════════════
-        // Órdenes (consulta, reenvío) y Avisos
+        // Órdenes (consulta, reenvío, reportes PDF) y Avisos
         // ═════════════════════════════════════════════════════════
         private void ConstruirOrdenes()
         {
@@ -725,7 +840,7 @@ namespace GUI_HRS_480
             card.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             Etiqueta(card, "Estado", 200, 20);
             cmbFiltroOrden = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(252, 15), Size = new Size(170, 26), Font = Tema.Fuente(10) };
-            cmbFiltroOrden.Items.AddRange(new object[] { "Todas", "Emitida", "Recibida", "Con diferencia", "Con reembolso" });
+            cmbFiltroOrden.Items.AddRange(new object[] { "Todas", "Emitida", "Recibida", "Con diferencia" });
             cmbFiltroOrden.SelectedIndex = 0;
             cmbFiltroOrden.SelectedIndexChanged += (s, e) => CargarOrdenes();
             card.Controls.Add(cmbFiltroOrden);
@@ -741,7 +856,7 @@ namespace GUI_HRS_480
             Tema.BotonDorado(btnExportarOrden);
             btnExportarOrden.Click += (s, e) => ExportarOrden();
             card.Controls.Add(btnExportarOrden);
-            dgvOrdenes = Grilla(card, 18, 56, 1034, 486, ("Orden", 9), ("Emisión", 11), ("Proveedor", 17), ("Insumo", 15), ("Cantidad", 8), ("P. unit.", 9), ("Total", 10), ("Plazo", 6), ("Estado", 11), ("Enviada", 11));
+            dgvOrdenes = Grilla(card, 18, 56, 1034, 486, ("Orden", 8), ("Emisión", 8), ("Pre-orden", 8), ("Proveedor", 15), ("Insumo", 13), ("Cant.", 5), ("Total", 9), ("Pago", 18), ("Estado", 10), ("Enviada", 8));
             dgvOrdenes.SelectionChanged += (s, e) =>
             {
                 var o = Seleccion<OrdenCompraBE>(dgvOrdenes);
@@ -758,8 +873,9 @@ namespace GUI_HRS_480
             dgvOrdenes.Rows.Clear();
             if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
             foreach (var o in r.Dato)
-                Fila(dgvOrdenes, o, o.NroOrden, o.FechaEmision.ToString("dd/MM/yyyy"), o.NombreProveedor, o.NombreInsumo, N(o.Cantidad),
-                     Plata(o.PrecioUnitario), Plata(o.PrecioTotal), o.PlazoDias.HasValue ? o.PlazoDias + " d" : "-", o.Estado,
+                Fila(dgvOrdenes, o, o.NroOrden, o.FechaEmision.ToString("dd/MM/yyyy"), string.IsNullOrWhiteSpace(o.NroPreOrden) ? "-" : o.NroPreOrden,
+                     o.NombreProveedor, o.NombreInsumo, N(o.Cantidad), Plata(o.PrecioTotal),
+                     string.IsNullOrWhiteSpace(o.NroOperacionPago) ? "-" : o.NroOperacionPago, o.Estado,
                      o.FechaEnvio.HasValue ? o.FechaEnvio.Value.ToString("dd/MM HH:mm") : "NO enviada");
             btnExportarOrden.Enabled = Seleccion<OrdenCompraBE>(dgvOrdenes) != null;
             Mensaje($"{r.Dato.Count} {Plural(r.Dato.Count, "orden", "órdenes")}.", null);

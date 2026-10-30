@@ -7,7 +7,8 @@ using ENTIDADES_HRS_480;
 namespace DAL_HRS_480
 {
     /// <summary>
-    /// Acceso a datos del proceso de negocio PN2 "Gestión de reposición de insumos".
+    /// Acceso a datos del proceso de negocio PN2 "Gestión de reposición de insumos"
+    /// (cotización → pre-orden → pago → orden de compra → factura y recepción).
     /// Una instancia = una conexión. Si se llama a Iniciar(), todas las operaciones siguientes
     /// corren en la MISMA transacción hasta Confirmar(); si se destruye sin confirmar, se revierte.
     /// </summary>
@@ -127,117 +128,6 @@ namespace DAL_HRS_480
         };
 
         // ══════════════════════════════════════════════════════
-        // SOLICITUDES DE COMPRA
-        // ══════════════════════════════════════════════════════
-        private const string SelectSolicitud = @"
-            SELECT sc.*, i.Nombre AS NombreInsumo, i.UnidadMedida,
-                   us.NombreUsuario AS NombreUsuarioSolic,
-                   uv.NombreUsuario AS NombreUsuarioValida
-            FROM SolicitudesCompra sc
-            INNER JOIN Insumos  i  ON sc.IdInsumo = i.IdInsumo
-            LEFT  JOIN Usuarios us ON sc.IdUsuarioSolicita = us.IdUsuario
-            LEFT  JOIN Usuarios uv ON sc.IdUsuarioValida   = uv.IdUsuario";
-
-        public int InsertarSolicitud(SolicitudCompraBE s, int idUsuario)
-        {
-            const string sql = @"INSERT INTO SolicitudesCompra
-                (IdInsumo, CantidadSolicitada, Prioridad, PresupuestoEstimado, Estado, IdUsuarioSolicita, Observaciones)
-                VALUES (@Ins, @Cant, @Prio, @Pres, N'Pendiente', @Usr, @Obs);
-                SELECT CAST(SCOPE_IDENTITY() AS INT);";
-            using var cmd = Cmd(sql);
-            cmd.Parameters.AddWithValue("@Ins", s.IdInsumo);
-            cmd.Parameters.AddWithValue("@Cant", s.CantidadSolicitada);
-            cmd.Parameters.AddWithValue("@Prio", s.Prioridad);
-            cmd.Parameters.AddWithValue("@Pres", V(s.PresupuestoEstimado));
-            cmd.Parameters.AddWithValue("@Usr", idUsuario);
-            cmd.Parameters.AddWithValue("@Obs", V(string.IsNullOrWhiteSpace(s.Observaciones) ? null : s.Observaciones));
-            return (int)cmd.ExecuteScalar()!;
-        }
-
-        public SolicitudCompraBE? ObtenerSolicitudPorId(int idSolicitud)
-        {
-            using var cmd = Cmd(SelectSolicitud + " WHERE sc.IdSolicitud = @Id");
-            cmd.Parameters.AddWithValue("@Id", idSolicitud);
-            using var rd = cmd.ExecuteReader();
-            return rd.Read() ? MapearSolicitud(rd) : null;
-        }
-
-        public List<SolicitudCompraBE> ObtenerSolicitudes(string? estado = null)
-        {
-            var lista = new List<SolicitudCompraBE>();
-            string sql = SelectSolicitud + (string.IsNullOrEmpty(estado) ? "" : " WHERE sc.Estado = @E")
-                       + " ORDER BY sc.FechaSolicitud DESC, sc.IdSolicitud DESC";
-            using var cmd = Cmd(sql);
-            if (!string.IsNullOrEmpty(estado)) cmd.Parameters.AddWithValue("@E", estado);
-            using var rd = cmd.ExecuteReader();
-            while (rd.Read()) lista.Add(MapearSolicitud(rd));
-            return lista;
-        }
-
-        /// <summary>Pendientes de validar: primero las más urgentes y, dentro de cada prioridad, las más antiguas.</summary>
-        public List<SolicitudCompraBE> ObtenerSolicitudesPendientes()
-        {
-            var lista = new List<SolicitudCompraBE>();
-            string sql = SelectSolicitud + @" WHERE sc.Estado = N'Pendiente'
-                ORDER BY CASE sc.Prioridad WHEN N'Urgente' THEN 1 WHEN N'Alta' THEN 2 WHEN N'Normal' THEN 3 ELSE 4 END,
-                         sc.FechaSolicitud, sc.IdSolicitud";
-            using var cmd = Cmd(sql);
-            using var rd = cmd.ExecuteReader();
-            while (rd.Read()) lista.Add(MapearSolicitud(rd));
-            return lista;
-        }
-
-        /// <summary>Aprobadas que todavía no tienen orden de compra.</summary>
-        public List<SolicitudCompraBE> ObtenerSolicitudesAprobadas()
-        {
-            var lista = new List<SolicitudCompraBE>();
-            using var cmd = Cmd(SelectSolicitud + " WHERE sc.Estado = N'Aprobada' ORDER BY sc.FechaValidacion, sc.IdSolicitud");
-            using var rd = cmd.ExecuteReader();
-            while (rd.Read()) lista.Add(MapearSolicitud(rd));
-            return lista;
-        }
-
-        /// <summary>
-        /// Cambia el estado solo si la solicitud sigue en <paramref name="estadoEsperado"/>
-        /// (evita que dos usuarios la procesen a la vez). Devuelve false si ya cambió.
-        /// </summary>
-        public bool ActualizarEstadoSolicitud(int idSolicitud, string nuevoEstado, string estadoEsperado,
-                                              int? idUsuarioValida = null, string? observaciones = null)
-        {
-            const string sql = @"UPDATE SolicitudesCompra
-                SET Estado = @N,
-                    IdUsuarioValida = ISNULL(@U, IdUsuarioValida),
-                    FechaValidacion = CASE WHEN @U IS NULL THEN FechaValidacion ELSE GETDATE() END,
-                    Observaciones   = ISNULL(@Obs, Observaciones)
-                WHERE IdSolicitud = @Id AND Estado = @Esp";
-            using var cmd = Cmd(sql);
-            cmd.Parameters.AddWithValue("@N", nuevoEstado);
-            cmd.Parameters.AddWithValue("@U", V(idUsuarioValida));
-            cmd.Parameters.AddWithValue("@Obs", V(observaciones));
-            cmd.Parameters.AddWithValue("@Id", idSolicitud);
-            cmd.Parameters.AddWithValue("@Esp", estadoEsperado);
-            return cmd.ExecuteNonQuery() == 1;
-        }
-
-        private static SolicitudCompraBE MapearSolicitud(SqlDataReader rd) => new SolicitudCompraBE
-        {
-            IdSolicitud = (int)rd["IdSolicitud"],
-            IdInsumo = (int)rd["IdInsumo"],
-            NombreInsumo = S(rd["NombreInsumo"]),
-            UnidadMedida = S(rd["UnidadMedida"]),
-            CantidadSolicitada = (decimal)rd["CantidadSolicitada"],
-            FechaSolicitud = (DateTime)rd["FechaSolicitud"],
-            Prioridad = S(rd["Prioridad"]),
-            PresupuestoEstimado = rd["PresupuestoEstimado"] == DBNull.Value ? (decimal?)null : (decimal)rd["PresupuestoEstimado"],
-            Estado = S(rd["Estado"]),
-            IdUsuarioSolicita = rd["IdUsuarioSolicita"] == DBNull.Value ? (int?)null : (int)rd["IdUsuarioSolicita"],
-            NombreUsuarioSolic = S(rd["NombreUsuarioSolic"]),
-            NombreUsuarioValida = S(rd["NombreUsuarioValida"]),
-            FechaValidacion = rd["FechaValidacion"] == DBNull.Value ? (DateTime?)null : (DateTime)rd["FechaValidacion"],
-            Observaciones = S(rd["Observaciones"])
-        };
-
-        // ══════════════════════════════════════════════════════
         // USUARIOS Y NOTIFICACIONES
         // ══════════════════════════════════════════════════════
         public List<Usuario> ObtenerUsuariosPorRol(string nombreRol)
@@ -346,17 +236,326 @@ namespace DAL_HRS_480
             Email = S(rd["Email"]),
             Direccion = S(rd["Direccion"]),
             CondicionesPago = S(rd["CondicionesPago"]),
-            Activo = (bool)rd["Activo"]
+            Activo = (bool)rd["Activo"],
+            CUIT = S(rd["CUIT"]),
+            CBU = S(rd["CBU"]),
+            Banco = S(rd["Banco"]),
+            FechaRegistroPago = rd["FechaRegistroPago"] == DBNull.Value ? (DateTime?)null : (DateTime)rd["FechaRegistroPago"]
         };
+
+        /// <summary>CUN08: guarda los datos bancarios del proveedor (pasa a estar registrado para pagos).</summary>
+        public bool RegistrarDatosPagoProveedor(ProveedorBE p)
+        {
+            const string sql = @"UPDATE Proveedores
+                SET CUIT = @Cuit, CBU = @Cbu, Banco = @Banco,
+                    Email = ISNULL(@Email, Email), Direccion = ISNULL(@Dir, Direccion),
+                    CondicionesPago = ISNULL(@Cond, CondicionesPago), FechaRegistroPago = GETDATE()
+                WHERE IdProveedor = @Id";
+            using var cmd = Cmd(sql);
+            cmd.Parameters.AddWithValue("@Cuit", p.CUIT);
+            cmd.Parameters.AddWithValue("@Cbu", p.CBU);
+            cmd.Parameters.AddWithValue("@Banco", V(string.IsNullOrWhiteSpace(p.Banco) ? null : p.Banco));
+            cmd.Parameters.AddWithValue("@Email", V(string.IsNullOrWhiteSpace(p.Email) ? null : p.Email));
+            cmd.Parameters.AddWithValue("@Dir", V(string.IsNullOrWhiteSpace(p.Direccion) ? null : p.Direccion));
+            cmd.Parameters.AddWithValue("@Cond", V(string.IsNullOrWhiteSpace(p.CondicionesPago) ? null : p.CondicionesPago));
+            cmd.Parameters.AddWithValue("@Id", p.IdProveedor);
+            return cmd.ExecuteNonQuery() == 1;
+        }
+
+        public bool ExistePagoAprobadoAProveedor(int idProveedor)
+        {
+            using var cmd = Cmd("SELECT COUNT(*) FROM PagosProveedor WHERE IdProveedor = @Id AND Estado = N'Aprobado'");
+            cmd.Parameters.AddWithValue("@Id", idProveedor);
+            return (int)cmd.ExecuteScalar()! > 0;
+        }
+
+        // ══════════════════════════════════════════════════════
+        // COTIZACIONES (CUN06)
+        // ══════════════════════════════════════════════════════
+        public int InsertarCotizacion(CotizacionBE c, int idUsuario)
+        {
+            const string sql = @"INSERT INTO Cotizaciones (IdInsumo, Cantidad, Estado, Observaciones, IdUsuarioRegistro)
+                VALUES (@Ins, @Cant, N'Abierta', @Obs, @Usr);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+            using var cmd = Cmd(sql);
+            cmd.Parameters.AddWithValue("@Ins", c.IdInsumo);
+            cmd.Parameters.AddWithValue("@Cant", c.Cantidad);
+            cmd.Parameters.AddWithValue("@Obs", V(string.IsNullOrWhiteSpace(c.Observaciones) ? null : c.Observaciones));
+            cmd.Parameters.AddWithValue("@Usr", idUsuario);
+            return (int)cmd.ExecuteScalar()!;
+        }
+
+        public int InsertarDetalleCotizacion(CotizacionDetalleBE d)
+        {
+            const string sql = @"INSERT INTO CotizacionesDetalle (IdCotizacion, IdProveedor, PrecioUnitario, PlazoDias)
+                VALUES (@Cot, @Prov, @Precio, @Plazo);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+            using var cmd = Cmd(sql);
+            cmd.Parameters.AddWithValue("@Cot", d.IdCotizacion);
+            cmd.Parameters.AddWithValue("@Prov", d.IdProveedor);
+            cmd.Parameters.AddWithValue("@Precio", d.PrecioUnitario);
+            cmd.Parameters.AddWithValue("@Plazo", d.PlazoDias);
+            return (int)cmd.ExecuteScalar()!;
+        }
+
+        private const string SelectCotizacion = @"
+            SELECT c.*, i.Nombre AS NombreInsumo, i.UnidadMedida, u.NombreUsuario
+            FROM Cotizaciones c
+            INNER JOIN Insumos  i ON c.IdInsumo = i.IdInsumo
+            LEFT  JOIN Usuarios u ON c.IdUsuarioRegistro = u.IdUsuario";
+
+        public CotizacionBE? ObtenerCotizacionPorId(int idCotizacion)
+        {
+            CotizacionBE? c;
+            using (var cmd = Cmd(SelectCotizacion + " WHERE c.IdCotizacion = @Id"))
+            {
+                cmd.Parameters.AddWithValue("@Id", idCotizacion);
+                using var rd = cmd.ExecuteReader();
+                c = rd.Read() ? MapearCotizacion(rd) : null;
+            }
+            if (c != null) c.Detalles = ObtenerDetallesCotizacion(c.IdCotizacion, c.Cantidad);
+            return c;
+        }
+
+        /// <param name="estado">null = todas.</param>
+        public List<CotizacionBE> ObtenerCotizaciones(string? estado = null)
+        {
+            var lista = new List<CotizacionBE>();
+            string sql = SelectCotizacion + (string.IsNullOrEmpty(estado) ? "" : " WHERE c.Estado = @E")
+                       + " ORDER BY c.FechaCotizacion DESC, c.IdCotizacion DESC";
+            using (var cmd = Cmd(sql))
+            {
+                if (!string.IsNullOrEmpty(estado)) cmd.Parameters.AddWithValue("@E", estado);
+                using var rd = cmd.ExecuteReader();
+                while (rd.Read()) lista.Add(MapearCotizacion(rd));
+            }
+            foreach (var c in lista) c.Detalles = ObtenerDetallesCotizacion(c.IdCotizacion, c.Cantidad);
+            return lista;
+        }
+
+        public List<CotizacionDetalleBE> ObtenerDetallesCotizacion(int idCotizacion, decimal cantidad)
+        {
+            var lista = new List<CotizacionDetalleBE>();
+            const string sql = @"SELECT d.*, p.Nombre AS NombreProveedor
+                FROM CotizacionesDetalle d INNER JOIN Proveedores p ON d.IdProveedor = p.IdProveedor
+                WHERE d.IdCotizacion = @Id ORDER BY d.PrecioUnitario, d.PlazoDias";
+            using var cmd = Cmd(sql);
+            cmd.Parameters.AddWithValue("@Id", idCotizacion);
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+                lista.Add(new CotizacionDetalleBE
+                {
+                    IdDetalleCotizacion = (int)rd["IdDetalleCotizacion"],
+                    IdCotizacion = idCotizacion,
+                    IdProveedor = (int)rd["IdProveedor"],
+                    NombreProveedor = S(rd["NombreProveedor"]),
+                    PrecioUnitario = (decimal)rd["PrecioUnitario"],
+                    PlazoDias = (int)rd["PlazoDias"],
+                    Subtotal = Math.Round(cantidad * (decimal)rd["PrecioUnitario"], 2)
+                });
+            if (lista.Count > 0) lista[0].MasConveniente = true;   // ya vienen ordenadas por precio y plazo
+            return lista;
+        }
+
+        /// <summary>Cambia el estado solo si sigue en <paramref name="estadoEsperado"/>.</summary>
+        public bool ActualizarEstadoCotizacion(int idCotizacion, string nuevoEstado, string estadoEsperado)
+        {
+            using var cmd = Cmd("UPDATE Cotizaciones SET Estado = @N WHERE IdCotizacion = @Id AND Estado = @Esp");
+            cmd.Parameters.AddWithValue("@N", nuevoEstado);
+            cmd.Parameters.AddWithValue("@Id", idCotizacion);
+            cmd.Parameters.AddWithValue("@Esp", estadoEsperado);
+            return cmd.ExecuteNonQuery() == 1;
+        }
+
+        /// <summary>¿El insumo ya tiene una cotización abierta o una pre-orden sin comprar?</summary>
+        public string? ObtenerPedidoAbiertoDeInsumo(int idInsumo)
+        {
+            const string sql = @"
+                SELECT TOP 1 x.Ref FROM (
+                    SELECT N'la cotización CT-' + RIGHT(N'0000' + CAST(IdCotizacion AS NVARCHAR(10)), 5) AS Ref
+                    FROM Cotizaciones WHERE IdInsumo = @Ins AND Estado = N'Abierta'
+                    UNION ALL
+                    SELECT N'la pre-orden ' + NroPreOrden FROM PreOrdenesCompra WHERE IdInsumo = @Ins AND Estado = N'Pendiente'
+                ) x";
+            using var cmd = Cmd(sql);
+            cmd.Parameters.AddWithValue("@Ins", idInsumo);
+            var r = cmd.ExecuteScalar();
+            return r == null || r == DBNull.Value ? null : r.ToString();
+        }
+
+        private static CotizacionBE MapearCotizacion(SqlDataReader rd) => new CotizacionBE
+        {
+            IdCotizacion = (int)rd["IdCotizacion"],
+            IdInsumo = (int)rd["IdInsumo"],
+            NombreInsumo = S(rd["NombreInsumo"]),
+            UnidadMedida = S(rd["UnidadMedida"]),
+            Cantidad = (decimal)rd["Cantidad"],
+            FechaCotizacion = (DateTime)rd["FechaCotizacion"],
+            Estado = S(rd["Estado"]),
+            Observaciones = S(rd["Observaciones"]),
+            IdUsuarioRegistro = rd["IdUsuarioRegistro"] == DBNull.Value ? (int?)null : (int)rd["IdUsuarioRegistro"],
+            NombreUsuario = S(rd["NombreUsuario"])
+        };
+
+        // ══════════════════════════════════════════════════════
+        // PRE-ÓRDENES DE COMPRA (CUN07)
+        // ══════════════════════════════════════════════════════
+        /// <summary>Próximo número "PO-00001". Dentro de la transacción toma un bloqueo para no repetir números.</summary>
+        public string GenerarNroPreOrden()
+        {
+            const string sql = @"SELECT ISNULL(MAX(TRY_CAST(SUBSTRING(NroPreOrden, 4, 20) AS INT)), 0) + 1
+                                 FROM PreOrdenesCompra WITH (UPDLOCK, HOLDLOCK)";
+            using var cmd = Cmd(sql);
+            return $"PO-{Convert.ToInt32(cmd.ExecuteScalar()):D5}";
+        }
+
+        public int InsertarPreOrden(PreOrdenCompraBE p, int idUsuario)
+        {
+            const string sql = @"INSERT INTO PreOrdenesCompra
+                (NroPreOrden, IdCotizacion, IdDetalleCotizacion, IdInsumo, IdProveedor, Cantidad, PrecioUnitario,
+                 PlazoDias, Prioridad, Estado, Observaciones, IdUsuarioRegistro)
+                VALUES (@Nro, @Cot, @Det, @Ins, @Prov, @Cant, @Precio, @Plazo, @Prio, N'Pendiente', @Obs, @Usr);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+            using var cmd = Cmd(sql);
+            cmd.Parameters.AddWithValue("@Nro", p.NroPreOrden);
+            cmd.Parameters.AddWithValue("@Cot", p.IdCotizacion);
+            cmd.Parameters.AddWithValue("@Det", p.IdDetalleCotizacion);
+            cmd.Parameters.AddWithValue("@Ins", p.IdInsumo);
+            cmd.Parameters.AddWithValue("@Prov", p.IdProveedor);
+            cmd.Parameters.AddWithValue("@Cant", p.Cantidad);
+            cmd.Parameters.AddWithValue("@Precio", p.PrecioUnitario);
+            cmd.Parameters.AddWithValue("@Plazo", p.PlazoDias);
+            cmd.Parameters.AddWithValue("@Prio", p.Prioridad);
+            cmd.Parameters.AddWithValue("@Obs", V(string.IsNullOrWhiteSpace(p.Observaciones) ? null : p.Observaciones));
+            cmd.Parameters.AddWithValue("@Usr", idUsuario);
+            return (int)cmd.ExecuteScalar()!;
+        }
+
+        private const string SelectPreOrden = @"
+            SELECT po.*, i.Nombre AS NombreInsumo, i.UnidadMedida, p.Nombre AS NombreProveedor,
+                   p.CBU, p.CUIT, u.NombreUsuario
+            FROM PreOrdenesCompra po
+            INNER JOIN Insumos     i ON po.IdInsumo    = i.IdInsumo
+            INNER JOIN Proveedores p ON po.IdProveedor = p.IdProveedor
+            LEFT  JOIN Usuarios    u ON po.IdUsuarioRegistro = u.IdUsuario";
+
+        public PreOrdenCompraBE? ObtenerPreOrdenPorId(int idPreOrden)
+        {
+            using var cmd = Cmd(SelectPreOrden + " WHERE po.IdPreOrden = @Id");
+            cmd.Parameters.AddWithValue("@Id", idPreOrden);
+            using var rd = cmd.ExecuteReader();
+            return rd.Read() ? MapearPreOrden(rd) : null;
+        }
+
+        /// <summary>Pendientes: primero las más urgentes y, dentro de cada prioridad, las más antiguas.</summary>
+        public List<PreOrdenCompraBE> ObtenerPreOrdenes(string? estado = null)
+        {
+            var lista = new List<PreOrdenCompraBE>();
+            string sql = SelectPreOrden + (string.IsNullOrEmpty(estado) ? "" : " WHERE po.Estado = @E") + @"
+                ORDER BY CASE po.Prioridad WHEN N'Urgente' THEN 1 WHEN N'Alta' THEN 2 WHEN N'Normal' THEN 3 ELSE 4 END,
+                         po.FechaPreOrden, po.IdPreOrden";
+            using var cmd = Cmd(sql);
+            if (!string.IsNullOrEmpty(estado)) cmd.Parameters.AddWithValue("@E", estado);
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read()) lista.Add(MapearPreOrden(rd));
+            return lista;
+        }
+
+        public bool ActualizarEstadoPreOrden(int idPreOrden, string nuevoEstado, string estadoEsperado)
+        {
+            using var cmd = Cmd("UPDATE PreOrdenesCompra SET Estado = @N WHERE IdPreOrden = @Id AND Estado = @Esp");
+            cmd.Parameters.AddWithValue("@N", nuevoEstado);
+            cmd.Parameters.AddWithValue("@Id", idPreOrden);
+            cmd.Parameters.AddWithValue("@Esp", estadoEsperado);
+            return cmd.ExecuteNonQuery() == 1;
+        }
+
+        private static PreOrdenCompraBE MapearPreOrden(SqlDataReader rd) => new PreOrdenCompraBE
+        {
+            IdPreOrden = (int)rd["IdPreOrden"],
+            NroPreOrden = S(rd["NroPreOrden"]),
+            IdCotizacion = (int)rd["IdCotizacion"],
+            IdDetalleCotizacion = (int)rd["IdDetalleCotizacion"],
+            IdInsumo = (int)rd["IdInsumo"],
+            NombreInsumo = S(rd["NombreInsumo"]),
+            UnidadMedida = S(rd["UnidadMedida"]),
+            IdProveedor = (int)rd["IdProveedor"],
+            NombreProveedor = S(rd["NombreProveedor"]),
+            Cantidad = (decimal)rd["Cantidad"],
+            PrecioUnitario = (decimal)rd["PrecioUnitario"],
+            PrecioTotal = (decimal)rd["PrecioTotal"],
+            PlazoDias = (int)rd["PlazoDias"],
+            Prioridad = S(rd["Prioridad"]),
+            FechaPreOrden = (DateTime)rd["FechaPreOrden"],
+            Estado = S(rd["Estado"]),
+            Observaciones = S(rd["Observaciones"]),
+            IdUsuarioRegistro = rd["IdUsuarioRegistro"] == DBNull.Value ? (int?)null : (int)rd["IdUsuarioRegistro"],
+            NombreUsuario = S(rd["NombreUsuario"]),
+            ProveedorNuevo = string.IsNullOrWhiteSpace(S(rd["CBU"])) || string.IsNullOrWhiteSpace(S(rd["CUIT"]))
+        };
+
+        // ══════════════════════════════════════════════════════
+        // PAGOS A PROVEEDORES (CUN09)
+        // ══════════════════════════════════════════════════════
+        public int InsertarPagoProveedor(PagoProveedorBE p, int idUsuario)
+        {
+            const string sql = @"INSERT INTO PagosProveedor
+                (IdPreOrden, IdProveedor, Monto, MedioPago, CBUDestino, NroOperacion, Estado, DetalleBanco, IdUsuarioRegistro)
+                VALUES (@Pre, @Prov, @Monto, @Medio, @Cbu, @Nro, @Est, @Det, @Usr);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+            using var cmd = Cmd(sql);
+            cmd.Parameters.AddWithValue("@Pre", p.IdPreOrden);
+            cmd.Parameters.AddWithValue("@Prov", p.IdProveedor);
+            cmd.Parameters.AddWithValue("@Monto", p.Monto);
+            cmd.Parameters.AddWithValue("@Medio", p.MedioPago);
+            cmd.Parameters.AddWithValue("@Cbu", p.CBUDestino);
+            cmd.Parameters.AddWithValue("@Nro", V(string.IsNullOrWhiteSpace(p.NroOperacion) ? null : p.NroOperacion));
+            cmd.Parameters.AddWithValue("@Est", p.Estado);
+            cmd.Parameters.AddWithValue("@Det", V(p.DetalleBanco.Length > 200 ? p.DetalleBanco.Substring(0, 200) : p.DetalleBanco));
+            cmd.Parameters.AddWithValue("@Usr", idUsuario);
+            return (int)cmd.ExecuteScalar()!;
+        }
+
+        // ══════════════════════════════════════════════════════
+        // FACTURAS DE PROVEEDOR (CUN10)
+        // ══════════════════════════════════════════════════════
+        public bool ExisteFacturaProveedor(int idProveedor, string nroFactura)
+        {
+            using var cmd = Cmd("SELECT COUNT(*) FROM FacturasProveedor WHERE IdProveedor = @P AND NroFactura = @N");
+            cmd.Parameters.AddWithValue("@P", idProveedor);
+            cmd.Parameters.AddWithValue("@N", nroFactura);
+            return (int)cmd.ExecuteScalar()! > 0;
+        }
+
+        public int InsertarFacturaProveedor(FacturaProveedorBE f, int idUsuario)
+        {
+            const string sql = @"INSERT INTO FacturasProveedor
+                (IdOrden, IdProveedor, NroFactura, FechaFactura, IdInsumo, CantidadFacturada, PrecioUnitario, IdUsuarioRegistro)
+                VALUES (@Ord, @Prov, @Nro, @Fecha, @Ins, @Cant, @Precio, @Usr);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+            using var cmd = Cmd(sql);
+            cmd.Parameters.AddWithValue("@Ord", f.IdOrden);
+            cmd.Parameters.AddWithValue("@Prov", f.IdProveedor);
+            cmd.Parameters.AddWithValue("@Nro", f.NroFactura);
+            cmd.Parameters.AddWithValue("@Fecha", f.FechaFactura.Date);
+            cmd.Parameters.AddWithValue("@Ins", f.IdInsumo);
+            cmd.Parameters.AddWithValue("@Cant", f.CantidadFacturada);
+            cmd.Parameters.AddWithValue("@Precio", f.PrecioUnitario);
+            cmd.Parameters.AddWithValue("@Usr", idUsuario);
+            return (int)cmd.ExecuteScalar()!;
+        }
 
         // ══════════════════════════════════════════════════════
         // ÓRDENES DE COMPRA
         // ══════════════════════════════════════════════════════
         private const string SelectOrden = @"
-            SELECT oc.*, p.Nombre AS NombreProveedor, p.Email AS EmailProveedor, i.Nombre AS NombreInsumo
+            SELECT oc.*, p.Nombre AS NombreProveedor, p.Email AS EmailProveedor, i.Nombre AS NombreInsumo,
+                   po.NroPreOrden, pg.NroOperacion AS NroOperacionPago, pg.FechaPago
             FROM OrdenesCompra oc
             INNER JOIN Proveedores p ON oc.IdProveedor = p.IdProveedor
-            INNER JOIN Insumos     i ON oc.IdInsumo    = i.IdInsumo";
+            INNER JOIN Insumos     i ON oc.IdInsumo    = i.IdInsumo
+            LEFT  JOIN PreOrdenesCompra po ON oc.IdPreOrden      = po.IdPreOrden
+            LEFT  JOIN PagosProveedor   pg ON oc.IdPagoProveedor = pg.IdPagoProveedor";
 
         /// <summary>Próximo número "OC-00001". Dentro de la transacción toma un bloqueo para no repetir números.</summary>
         public string GenerarNroOrden()
@@ -371,13 +570,14 @@ namespace DAL_HRS_480
         public int InsertarOrden(OrdenCompraBE o, int idUsuario)
         {
             const string sql = @"INSERT INTO OrdenesCompra
-                (NroOrden, IdSolicitud, IdProveedor, IdInsumo, Cantidad, PrecioUnitario, PlazoDias, Estado,
+                (NroOrden, IdPreOrden, IdPagoProveedor, IdProveedor, IdInsumo, Cantidad, PrecioUnitario, PlazoDias, Estado,
                  DireccionEntrega, IdUsuarioRegistro)
-                VALUES (@Nro, @Sol, @Prov, @Ins, @Cant, @Precio, @Plazo, N'Emitida', @Dir, @Usr);
+                VALUES (@Nro, @Pre, @Pago, @Prov, @Ins, @Cant, @Precio, @Plazo, N'Emitida', @Dir, @Usr);
                 SELECT CAST(SCOPE_IDENTITY() AS INT);";
             using var cmd = Cmd(sql);
             cmd.Parameters.AddWithValue("@Nro", o.NroOrden);
-            cmd.Parameters.AddWithValue("@Sol", o.IdSolicitud);
+            cmd.Parameters.AddWithValue("@Pre", V(o.IdPreOrden));
+            cmd.Parameters.AddWithValue("@Pago", V(o.IdPagoProveedor));
             cmd.Parameters.AddWithValue("@Prov", o.IdProveedor);
             cmd.Parameters.AddWithValue("@Ins", o.IdInsumo);
             cmd.Parameters.AddWithValue("@Cant", o.Cantidad);
@@ -431,7 +631,12 @@ namespace DAL_HRS_480
         {
             IdOrden = (int)rd["IdOrden"],
             NroOrden = S(rd["NroOrden"]),
-            IdSolicitud = (int)rd["IdSolicitud"],
+            IdSolicitud = rd["IdSolicitud"] == DBNull.Value ? (int?)null : (int)rd["IdSolicitud"],
+            IdPreOrden = rd["IdPreOrden"] == DBNull.Value ? (int?)null : (int)rd["IdPreOrden"],
+            NroPreOrden = S(rd["NroPreOrden"]),
+            IdPagoProveedor = rd["IdPagoProveedor"] == DBNull.Value ? (int?)null : (int)rd["IdPagoProveedor"],
+            NroOperacionPago = S(rd["NroOperacionPago"]),
+            FechaPago = rd["FechaPago"] == DBNull.Value ? (DateTime?)null : (DateTime)rd["FechaPago"],
             IdProveedor = (int)rd["IdProveedor"],
             NombreProveedor = S(rd["NombreProveedor"]),
             IdInsumo = (int)rd["IdInsumo"],
@@ -453,8 +658,8 @@ namespace DAL_HRS_480
         public int InsertarRecepcion(RecepcionInsumoBE r, int idUsuario)
         {
             const string sql = @"INSERT INTO RecepcionesInsumos
-                (IdOrden, IdInsumo, CantidadRecibida, Estado, Observaciones, IdUsuarioRegistro)
-                VALUES (@Ord, @Ins, @Cant, @Est, @Obs, @Usr);
+                (IdOrden, IdInsumo, CantidadRecibida, Estado, Observaciones, IdFacturaProveedor, IdUsuarioRegistro)
+                VALUES (@Ord, @Ins, @Cant, @Est, @Obs, @Fac, @Usr);
                 SELECT CAST(SCOPE_IDENTITY() AS INT);";
             using var cmd = Cmd(sql);
             cmd.Parameters.AddWithValue("@Ord", r.IdOrden);
@@ -462,6 +667,7 @@ namespace DAL_HRS_480
             cmd.Parameters.AddWithValue("@Cant", r.CantidadRecibida);
             cmd.Parameters.AddWithValue("@Est", r.Estado);
             cmd.Parameters.AddWithValue("@Obs", V(string.IsNullOrWhiteSpace(r.Observaciones) ? null : r.Observaciones));
+            cmd.Parameters.AddWithValue("@Fac", V(r.IdFacturaProveedor));
             cmd.Parameters.AddWithValue("@Usr", idUsuario);
             return (int)cmd.ExecuteScalar()!;
         }
@@ -476,10 +682,11 @@ namespace DAL_HRS_480
         public List<RecepcionInsumoBE> ObtenerRecepciones()
         {
             var lista = new List<RecepcionInsumoBE>();
-            const string sql = @"SELECT TOP 200 r.*, o.NroOrden, i.Nombre AS NombreInsumo
+            const string sql = @"SELECT TOP 200 r.*, o.NroOrden, i.Nombre AS NombreInsumo, f.NroFactura
                 FROM RecepcionesInsumos r
                 INNER JOIN OrdenesCompra o ON r.IdOrden = o.IdOrden
                 INNER JOIN Insumos i ON r.IdInsumo = i.IdInsumo
+                LEFT  JOIN FacturasProveedor f ON r.IdFacturaProveedor = f.IdFacturaProveedor
                 ORDER BY r.FechaRecepcion DESC, r.IdRecepcion DESC";
             using var cmd = Cmd(sql);
             using var rd = cmd.ExecuteReader();
@@ -494,63 +701,9 @@ namespace DAL_HRS_480
                     CantidadRecibida = (decimal)rd["CantidadRecibida"],
                     FechaRecepcion = (DateTime)rd["FechaRecepcion"],
                     Estado = S(rd["Estado"]),
-                    Observaciones = S(rd["Observaciones"])
-                });
-            return lista;
-        }
-
-        // ══════════════════════════════════════════════════════
-        // REEMBOLSOS
-        // ══════════════════════════════════════════════════════
-        public bool ExisteReembolso(int idOrden)
-        {
-            using var cmd = Cmd("SELECT COUNT(*) FROM SolicitudesReembolso WHERE IdOrden = @Id");
-            cmd.Parameters.AddWithValue("@Id", idOrden);
-            return (int)cmd.ExecuteScalar()! > 0;
-        }
-
-        public int InsertarReembolso(SolicitudReembolsoBE r, int idUsuario)
-        {
-            const string sql = @"INSERT INTO SolicitudesReembolso
-                (IdOrden, CantidadComprada, CantidadRecibida, MontoReembolso, Motivo, Estado, IdUsuarioRegistro)
-                VALUES (@Ord, @Comp, @Rec, @Monto, @Mot, N'Pendiente', @Usr);
-                SELECT CAST(SCOPE_IDENTITY() AS INT);";
-            using var cmd = Cmd(sql);
-            cmd.Parameters.AddWithValue("@Ord", r.IdOrden);
-            cmd.Parameters.AddWithValue("@Comp", r.CantidadComprada);
-            cmd.Parameters.AddWithValue("@Rec", r.CantidadRecibida);
-            cmd.Parameters.AddWithValue("@Monto", r.MontoReembolso);
-            cmd.Parameters.AddWithValue("@Mot", r.Motivo);
-            cmd.Parameters.AddWithValue("@Usr", idUsuario);
-            return (int)cmd.ExecuteScalar()!;
-        }
-
-        public List<SolicitudReembolsoBE> ObtenerReembolsos()
-        {
-            var lista = new List<SolicitudReembolsoBE>();
-            const string sql = @"SELECT TOP 200 s.*, o.NroOrden, i.Nombre AS NombreInsumo, p.Nombre AS NombreProveedor
-                FROM SolicitudesReembolso s
-                INNER JOIN OrdenesCompra o ON s.IdOrden = o.IdOrden
-                INNER JOIN Insumos i ON o.IdInsumo = i.IdInsumo
-                INNER JOIN Proveedores p ON o.IdProveedor = p.IdProveedor
-                ORDER BY s.FechaReembolso DESC, s.IdReembolso DESC";
-            using var cmd = Cmd(sql);
-            using var rd = cmd.ExecuteReader();
-            while (rd.Read())
-                lista.Add(new SolicitudReembolsoBE
-                {
-                    IdReembolso = (int)rd["IdReembolso"],
-                    IdOrden = (int)rd["IdOrden"],
-                    NroOrden = S(rd["NroOrden"]),
-                    NombreInsumo = S(rd["NombreInsumo"]),
-                    NombreProveedor = S(rd["NombreProveedor"]),
-                    CantidadComprada = (decimal)rd["CantidadComprada"],
-                    CantidadRecibida = (decimal)rd["CantidadRecibida"],
-                    Diferencia = (decimal)rd["Diferencia"],
-                    MontoReembolso = (decimal)rd["MontoReembolso"],
-                    Motivo = S(rd["Motivo"]),
-                    FechaReembolso = (DateTime)rd["FechaReembolso"],
-                    Estado = S(rd["Estado"])
+                    Observaciones = S(rd["Observaciones"]),
+                    IdFacturaProveedor = rd["IdFacturaProveedor"] == DBNull.Value ? (int?)null : (int)rd["IdFacturaProveedor"],
+                    NroFactura = S(rd["NroFactura"])
                 });
             return lista;
         }

@@ -298,7 +298,13 @@ namespace SERVICIOS_HRS_480
                             row.RelativeItem().PaddingLeft(6).Column(c => Bloque(c, "Entrega", b =>
                             {
                                 Dato(b, "Dirección de entrega", o.DireccionEntrega);
-                                Dato(b, "Solicitud de origen", "N° " + o.IdSolicitud);
+                                if (!string.IsNullOrWhiteSpace(o.NroPreOrden))
+                                    Dato(b, "Pre-orden de origen", o.NroPreOrden);
+                                else if (o.IdSolicitud.HasValue)
+                                    Dato(b, "Solicitud de origen", "N° " + o.IdSolicitud);
+                                if (!string.IsNullOrWhiteSpace(o.NroOperacionPago))
+                                    Dato(b, "Pago (transferencia)", o.NroOperacionPago +
+                                        (o.FechaPago.HasValue ? " · " + o.FechaPago.Value.ToString("dd/MM/yyyy HH:mm", AR) : ""));
                             }));
                         });
 

@@ -24,7 +24,8 @@ namespace DAL_HRS_480
     "Huespedes","Habitaciones","Reservas",
     "CheckIns","CheckOuts","Pagos","Facturas",
     "Insumos","Proveedores","SolicitudesCompra","OrdenesCompra",
-    "RecepcionesInsumos","MovimientosStock","SolicitudesReembolso"
+    "RecepcionesInsumos","MovimientosStock","SolicitudesReembolso",
+    "Cotizaciones","CotizacionesDetalle","PreOrdenesCompra","PagosProveedor","FacturasProveedor"
 };
 
             if (!tablasPermitidas.Contains(nombreTabla))

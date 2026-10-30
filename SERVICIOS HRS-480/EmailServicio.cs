@@ -73,7 +73,7 @@ namespace SERVICIOS_HRS_480
             var sb = new StringBuilder();
             sb.AppendLine($"Estimado/a {o.NombreProveedor}:");
             sb.AppendLine();
-            sb.AppendLine("Le enviamos la siguiente orden de compra:");
+            sb.AppendLine("Le enviamos la siguiente orden de compra, ya abonada:");
             sb.AppendLine();
             sb.AppendLine($"  Nro de orden     : {o.NroOrden}");
             sb.AppendLine($"  Fecha de emisión : {o.FechaEmision:dd/MM/yyyy HH:mm}");
@@ -81,14 +81,17 @@ namespace SERVICIOS_HRS_480
             sb.AppendLine($"  Cantidad         : {o.Cantidad:0.##}");
             sb.AppendLine($"  Precio unitario  : $ {o.PrecioUnitario:N2}");
             sb.AppendLine($"  Total            : $ {o.PrecioTotal:N2}");
+            if (!string.IsNullOrWhiteSpace(o.NroOperacionPago))
+                sb.AppendLine($"  Pago             : transferencia acreditada, comprobante {o.NroOperacionPago}" +
+                              (o.FechaPago.HasValue ? $" ({o.FechaPago:dd/MM/yyyy HH:mm})" : ""));
             if (o.PlazoDias.HasValue)
                 sb.AppendLine($"  Plazo de entrega : {o.PlazoDias} días (hasta el {o.FechaEmision.AddDays(o.PlazoDias.Value):dd/MM/yyyy})");
             sb.AppendLine();
             sb.AppendLine("Dirección de entrega:");
             sb.AppendLine($"  {direccionEntrega}");
             sb.AppendLine();
-            sb.AppendLine("Por favor confirme la recepción de esta orden. Si hay diferencias en la entrega,");
-            sb.AppendLine("el hotel solicitará el reembolso correspondiente.");
+            sb.AppendLine("Por favor envíe los productos junto con la factura correspondiente (detallando");
+            sb.AppendLine("insumo, cantidad y precio). Al recibirlos, el depósito controla que coincidan con esta orden.");
             sb.AppendLine();
             sb.AppendLine("Saludos cordiales,");
             sb.AppendLine("Departamento de Compras - Hotelería Rydl");

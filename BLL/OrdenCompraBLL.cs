@@ -4,83 +4,132 @@ using SERVICIOS_HRS_480;
 
 namespace BLL_HRS_480
 {
-    /// <summary>CUN08 Realizar compra de insumos: orden de compra + envío al proveedor.</summary>
+    /// <summary>
+    /// CUN09 Realizar compra de insumos. El Encargado de Compras toma una pre-orden pendiente, el sistema se conecta
+    /// con el banco y transfiere el total al proveedor; con el pago aprobado se genera la orden de compra y se le envía
+    /// al proveedor (con el comprobante). Si el proveedor nunca cobró, antes hay que registrarlo (CUN08, extiende a CUN09).
+    /// </summary>
     public class OrdenCompraBLL
     {
         public const string DIRECCION_ENTREGA_DEFECTO = "Hotelería Rydl - Recepción de mercadería, Av. del Libertador 1000, CABA";
-        private static readonly string[] TABLAS = { "OrdenesCompra", "SolicitudesCompra" };
+        private static readonly string[] TABLAS = { "PagosProveedor", "OrdenesCompra", "PreOrdenesCompra" };
 
-        private readonly ProveedorBLL _proveedores = new ProveedorBLL();
+        private readonly BancoServicio _banco = new BancoServicio();
         private readonly EmailServicio _email = new EmailServicio();
 
-        public ResultadoReposicion<OrdenCompraBE> GenerarOrdenCompra(int idSolicitud, int idProveedor, decimal precioUnitario,
-                                                                      int plazoDias, string? direccionEntrega = null)
+        public ResultadoReposicion<OrdenCompraBE> RealizarCompra(int idPreOrden, string? direccionEntrega = null)
         {
             const string OP = "Realizar compra de insumos";
-            if (!ControlAcceso.PuedeGestionarCompras())
+            if (!ControlAcceso.PuedeRealizarCompra())
                 return ReposicionComun.Denegado<OrdenCompraBE>(OP);
 
             direccionEntrega = string.IsNullOrWhiteSpace(direccionEntrega) ? DIRECCION_ENTREGA_DEFECTO : direccionEntrega.Trim();
             if (direccionEntrega.Length > 300)
                 return ReposicionComun.Rechazo<OrdenCompraBE>(OP, "La dirección de entrega es demasiado larga.");
 
-            // CUN09 (incluido): proveedor activo, precio y plazo válidos
-            var sel = _proveedores.SeleccionarProveedor(idProveedor, precioUnitario, plazoDias);
-            if (!sel.Exito) return ResultadoReposicion<OrdenCompraBE>.Fallo(sel.Mensaje);
-
             try
             {
                 bool dvOk = DigitoVerificador.Consistente(TABLAS);
-                int idOrden;
-                string nroOrden;
+                PreOrdenCompraBE? po;
+                ProveedorBE? prov;
 
                 using (var dal = new ReposicionDAL())
                 {
-                    var s = dal.ObtenerSolicitudPorId(idSolicitud);
-                    if (s == null)
-                        return ReposicionComun.Rechazo<OrdenCompraBE>(OP, "La solicitud no existe.");
-                    if (s.Estado != "Aprobada")
-                        return ReposicionComun.Rechazo<OrdenCompraBE>(OP,
-                            $"Solo se compra una solicitud aprobada (SC-{idSolicitud:D4} está {s.Estado.ToLower()}).");
+                    po = dal.ObtenerPreOrdenPorId(idPreOrden);
+                    if (po == null)
+                        return ReposicionComun.Rechazo<OrdenCompraBE>(OP, "La pre-orden no existe.");
+                    if (po.Estado != "Pendiente")
+                        return ReposicionComun.Rechazo<OrdenCompraBE>(OP, $"La pre-orden {po.NroPreOrden} ya fue comprada.");
+                    prov = dal.ObtenerProveedorPorId(po.IdProveedor);
+                }
+                if (prov == null || !prov.Activo)
+                    return ReposicionComun.Rechazo<OrdenCompraBE>(OP, "El proveedor de la pre-orden no existe o está inactivo.");
+                if (prov.EsNuevo)
+                    return ReposicionComun.Rechazo<OrdenCompraBE>(OP,
+                        $"{prov.Nombre} es un proveedor nuevo (nunca se le pagó): primero registrá sus datos bancarios.");
+                if (string.IsNullOrWhiteSpace(prov.Email) || !prov.Email.Contains('@'))
+                    return ReposicionComun.Rechazo<OrdenCompraBE>(OP, $"{prov.Nombre} no tiene un correo válido: no se le puede enviar la orden.");
 
+                // ── 1) Conexión con el banco: transferencia por el total de la pre-orden ──
+                var trf = _banco.RealizarTransferencia(prov.CUIT, prov.CBU, po.PrecioTotal, "Pre-orden " + po.NroPreOrden);
+                if (!trf.Aprobada)
+                {
+                    using (var dal = new ReposicionDAL())
+                        dal.InsertarPagoProveedor(new PagoProveedorBE
+                        {
+                            IdPreOrden = po.IdPreOrden,
+                            IdProveedor = prov.IdProveedor,
+                            Monto = po.PrecioTotal,
+                            CBUDestino = prov.CBU,
+                            Estado = "Rechazado",
+                            DetalleBanco = trf.Mensaje
+                        }, ReposicionComun.IdActual);
+                    BitacoraReposicion.Registrar(BitacoraReposicion.PAGO_RECHAZADO, 2,
+                        $"{po.NroPreOrden} a {prov.Nombre} por $ {po.PrecioTotal:N2}: {trf.Mensaje}", "FALLIDO");
+                    DigitoVerificador.RecalcularSi(dvOk, "PagosProveedor");
+                    return ResultadoReposicion<OrdenCompraBE>.Fallo(trf.Mensaje + " La pre-orden sigue pendiente.");
+                }
+
+                // ── 2) Pago aprobado: se registra el pago y se genera la orden (todo o nada) ──
+                int idOrden;
+                string nroOrden;
+                using (var dal = new ReposicionDAL())
+                {
                     dal.Iniciar();
+                    int idPago = dal.InsertarPagoProveedor(new PagoProveedorBE
+                    {
+                        IdPreOrden = po.IdPreOrden,
+                        IdProveedor = prov.IdProveedor,
+                        Monto = po.PrecioTotal,
+                        CBUDestino = prov.CBU,
+                        NroOperacion = trf.NroOperacion,
+                        Estado = "Aprobado",
+                        DetalleBanco = trf.Mensaje
+                    }, ReposicionComun.IdActual);
+
                     nroOrden = dal.GenerarNroOrden();
                     idOrden = dal.InsertarOrden(new OrdenCompraBE
                     {
                         NroOrden = nroOrden,
-                        IdSolicitud = idSolicitud,
-                        IdProveedor = idProveedor,
-                        IdInsumo = s.IdInsumo,
-                        Cantidad = s.CantidadSolicitada,
-                        PrecioUnitario = precioUnitario,
-                        PlazoDias = plazoDias,
+                        IdPreOrden = po.IdPreOrden,
+                        IdPagoProveedor = idPago,
+                        IdProveedor = po.IdProveedor,
+                        IdInsumo = po.IdInsumo,
+                        Cantidad = po.Cantidad,
+                        PrecioUnitario = po.PrecioUnitario,
+                        PlazoDias = po.PlazoDias,
                         DireccionEntrega = direccionEntrega
                     }, ReposicionComun.IdActual);
 
-                    // La solicitud pasa a 'Ordenada' solo si seguía 'Aprobada' (evita dos órdenes por la misma solicitud)
-                    if (!dal.ActualizarEstadoSolicitud(idSolicitud, "Ordenada", "Aprobada"))
+                    // La pre-orden pasa a 'Comprada' solo si seguía 'Pendiente' (evita pagar dos veces)
+                    if (!dal.ActualizarEstadoPreOrden(po.IdPreOrden, "Comprada", "Pendiente"))
                     {
                         dal.Revertir();
-                        return ReposicionComun.Rechazo<OrdenCompraBE>(OP, "La solicitud ya fue ordenada por otro usuario.");
+                        BitacoraReposicion.Registrar(BitacoraReposicion.ERROR_TECNICO, 1,
+                            $"{po.NroPreOrden}: el banco aprobó {trf.NroOperacion} pero la pre-orden ya había sido comprada. Revisar el pago duplicado.",
+                            "FALLIDO");
+                        return ResultadoReposicion<OrdenCompraBE>.Fallo(
+                            $"La pre-orden ya había sido comprada por otro usuario. El comprobante {trf.NroOperacion} quedó en bitácora para revisarlo.");
                     }
 
                     dal.InsertarNotificacion(new NotificacionBE
                     {
-                        IdProveedorDestino = idProveedor,
-                        IdSolicitud = idSolicitud,
+                        IdProveedorDestino = prov.IdProveedor,
                         IdOrden = idOrden,
                         Tipo = "Orden enviada a proveedor",
-                        Mensaje = $"Orden {nroOrden} para {sel.Dato.Proveedor.Nombre}: {s.CantidadSolicitada:0.##} {s.UnidadMedida} de {s.NombreInsumo}.",
+                        Mensaje = $"Orden {nroOrden} para {prov.Nombre}: {po.Cantidad:0.##} {po.UnidadMedida} de {po.NombreInsumo}. Pago {trf.NroOperacion}.",
                         Leida = true
                     });
                     dal.Confirmar();
                 }
 
-                // Envío fuera de la transacción: un correo no se puede "deshacer"
+                BitacoraReposicion.Registrar(BitacoraReposicion.PAGO_REALIZADO, 3,
+                    $"{po.NroPreOrden}: $ {po.PrecioTotal:N2} a {prov.Nombre} (CBU {prov.CBU}). Comprobante {trf.NroOperacion}.", "EXITOSO");
+
+                // ── 3) Envío de la orden al proveedor (fuera de la transacción: un correo no se puede deshacer) ──
                 OrdenCompraBE orden;
                 using (var lectura = new ReposicionDAL()) orden = lectura.ObtenerOrdenPorId(idOrden)!;
                 var envio = _email.EnviarOrdenAProveedor(orden, direccionEntrega);
-
                 if (envio.Exito)
                 {
                     using var dal2 = new ReposicionDAL();
@@ -91,15 +140,14 @@ namespace BLL_HRS_480
                 else
                 {
                     BitacoraReposicion.Registrar(BitacoraReposicion.ERROR_ENVIO, 2,
-                        $"{nroOrden} emitida pero no enviada. {envio.Mensaje}", "FALLIDO");
+                        $"{nroOrden} pagada y emitida pero no enviada. {envio.Mensaje}", "FALLIDO");
                 }
                 DigitoVerificador.RecalcularSi(dvOk, TABLAS);
 
                 using var fin = new ReposicionDAL();
                 orden = fin.ObtenerOrdenPorId(idOrden)!;
-                string msg = envio.Exito
-                    ? $"Orden {nroOrden} emitida. {envio.Mensaje}"
-                    : $"Orden {nroOrden} emitida, pero NO se pudo enviar al proveedor. {envio.Mensaje} Podés reenviarla desde la lista de órdenes.";
+                string msg = $"Pago aprobado ({trf.NroOperacion}) y orden {nroOrden} generada. " +
+                             (envio.Exito ? envio.Mensaje : $"No se pudo enviar al proveedor: {envio.Mensaje} Podés reenviarla desde Órdenes.");
                 return ResultadoReposicion<OrdenCompraBE>.Ok(orden, msg);
             }
             catch (Exception ex) { return ReposicionComun.ErrorTecnico<OrdenCompraBE>(OP, ex); }

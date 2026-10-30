@@ -333,6 +333,13 @@ namespace ENTIDADES_HRS_480
         public string Direccion { get; set; }
         public string CondicionesPago { get; set; }
         public bool Activo { get; set; }
+        // Datos para pagarle por transferencia (CUN08 Registrar proveedor nuevo)
+        public string CUIT { get; set; }
+        public string CBU { get; set; }
+        public string Banco { get; set; }
+        public DateTime? FechaRegistroPago { get; set; }
+        /// <summary>Proveedor nuevo = nunca se le pagó: todavía no tiene sus datos bancarios registrados.</summary>
+        public bool EsNuevo => string.IsNullOrWhiteSpace(CBU) || string.IsNullOrWhiteSpace(CUIT);
         public override string ToString() => Nombre;
     }
 
@@ -376,7 +383,12 @@ namespace ENTIDADES_HRS_480
     {
         public int IdOrden { get; set; }
         public string NroOrden { get; set; }
-        public int IdSolicitud { get; set; }
+        public int? IdSolicitud { get; set; }      // solo órdenes del flujo anterior
+        public int? IdPreOrden { get; set; }       // CUN07 → CUN09
+        public string NroPreOrden { get; set; }
+        public int? IdPagoProveedor { get; set; }  // pago bancario que originó la orden
+        public string NroOperacionPago { get; set; }
+        public DateTime? FechaPago { get; set; }
         public int IdProveedor { get; set; }
         public string NombreProveedor { get; set; }
         public int IdInsumo { get; set; }
@@ -386,7 +398,7 @@ namespace ENTIDADES_HRS_480
         public decimal PrecioTotal { get; set; }
         public int? PlazoDias { get; set; }
         public DateTime FechaEmision { get; set; }
-        public string Estado { get; set; }  // 'Emitida','Recibida','Con diferencia','Con reembolso'
+        public string Estado { get; set; }  // 'Emitida' (pagada y enviada), 'Recibida', 'Con diferencia'
         public string DireccionEntrega { get; set; }
         public string EmailProveedor { get; set; }
         public DateTime? FechaEnvio { get; set; }
@@ -405,6 +417,8 @@ namespace ENTIDADES_HRS_480
         public DateTime FechaRecepcion { get; set; }
         public string Estado { get; set; }  // 'Aceptado','Con diferencia'
         public string Observaciones { get; set; }
+        public int? IdFacturaProveedor { get; set; }
+        public string NroFactura { get; set; }
     }
 }
 

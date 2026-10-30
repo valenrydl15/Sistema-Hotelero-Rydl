@@ -5,7 +5,7 @@ namespace BLL_HRS_480
 {
     /// <summary>
     /// Avisos internos del proceso. Son "mejor esfuerzo": si fallan no se deshace la operación de negocio
-    /// (la solicitud o la recepción ya quedaron registradas); el fallo queda en bitácora.
+    /// (la pre-orden o la recepción ya quedaron registradas); el fallo queda en bitácora.
     /// </summary>
     public class NotificacionBLL
     {
@@ -16,54 +16,32 @@ namespace BLL_HRS_480
             return lista.Count > 0 ? lista : dal.ObtenerUsuariosPorRol(ControlAcceso.ROL_ADMIN);
         }
 
-        /// <summary>CUN06: avisa a Compras que hay una nueva solicitud para validar.</summary>
-        public int NotificarSolicitud(int idSolicitud)
+        /// <summary>CUN07: avisa a Compras que hay una pre-orden lista para pagar.</summary>
+        public int NotificarPreOrden(int idPreOrden)
         {
             try
             {
                 using var dal = new ReposicionDAL();
-                var s = dal.ObtenerSolicitudPorId(idSolicitud);
-                if (s == null) return 0;
+                var po = dal.ObtenerPreOrdenPorId(idPreOrden);
+                if (po == null) return 0;
 
-                string msg = $"Nueva solicitud de compra SC-{s.IdSolicitud:D4}: {s.CantidadSolicitada:0.##} {s.UnidadMedida} de " +
-                             $"{s.NombreInsumo} (prioridad {s.Prioridad}) solicitada el {s.FechaSolicitud:dd/MM/yyyy HH:mm}.";
+                string msg = $"Nueva pre-orden {po.NroPreOrden}: {po.Cantidad:0.##} {po.UnidadMedida} de {po.NombreInsumo} " +
+                             $"a {po.NombreProveedor} por $ {po.PrecioTotal:N2} (prioridad {po.Prioridad})." +
+                             (po.ProveedorNuevo ? " Es un proveedor nuevo: hay que registrarlo antes de pagar." : "");
                 int n = 0;
                 foreach (var u in Destinatarios(dal, ControlAcceso.ROL_COMPRAS))
                 {
                     dal.InsertarNotificacion(new NotificacionBE
-                    { IdUsuarioDestino = u.IdUsuario, IdSolicitud = idSolicitud, Tipo = "Solicitud pendiente", Mensaje = msg });
+                    { IdUsuarioDestino = u.IdUsuario, Tipo = "Pre-orden para pagar", Mensaje = msg });
                     n++;
                 }
                 return n;
             }
-            catch (Exception ex) { return Falla("NotificarSolicitud", ex); }
+            catch (Exception ex) { return Falla("NotificarPreOrden", ex); }
         }
 
-        /// <summary>CUN07 (rechazo): avisa a quien pidió la compra que fue rechazada y por qué.</summary>
-        public int NotificarRechazo(int idSolicitud, string motivo)
-        {
-            try
-            {
-                using var dal = new ReposicionDAL();
-                var s = dal.ObtenerSolicitudPorId(idSolicitud);
-                if (s == null) return 0;
-
-                if (s.IdUsuarioSolicita == null) return 0;
-
-                dal.InsertarNotificacion(new NotificacionBE
-                {
-                    IdUsuarioDestino = s.IdUsuarioSolicita,
-                    IdSolicitud = idSolicitud,
-                    Tipo = "Solicitud rechazada",
-                    Mensaje = $"La solicitud SC-{s.IdSolicitud:D4} ({s.NombreInsumo}) fue rechazada. Motivo: {motivo}"
-                });
-                return 1;
-            }
-            catch (Exception ex) { return Falla("NotificarRechazo", ex); }
-        }
-
-        /// <summary>CUN10 (diferencia): avisa a Compras que se recibió una cantidad distinta de la pedida.</summary>
-        public int NotificarDiferenciaRecepcion(int idOrden, decimal cantidadRecibida)
+        /// <summary>CUN10 (no coincide): avisa a Compras para que lo reclame al proveedor.</summary>
+        public int NotificarDiferenciaRecepcion(int idOrden, string diferencias)
         {
             try
             {
@@ -71,14 +49,13 @@ namespace BLL_HRS_480
                 var o = dal.ObtenerOrdenPorId(idOrden);
                 if (o == null) return 0;
 
-                string msg = $"Recepción con diferencia en la orden {o.NroOrden} ({o.NombreInsumo}, proveedor {o.NombreProveedor}): " +
-                             $"se pidieron {o.Cantidad:0.##} y se recibieron {cantidadRecibida:0.##}. " +
-                             "Evalúe registrar una solicitud de reembolso.";
+                string msg = $"Los insumos recibidos de la orden {o.NroOrden} ({o.NombreInsumo}, proveedor {o.NombreProveedor}) " +
+                             $"no coinciden: {diferencias}. Reclamalo al proveedor.";
                 int n = 0;
                 foreach (var u in Destinatarios(dal, ControlAcceso.ROL_COMPRAS))
                 {
                     dal.InsertarNotificacion(new NotificacionBE
-                    { IdUsuarioDestino = u.IdUsuario, IdOrden = idOrden, Tipo = "Diferencia en recepción", Mensaje = msg });
+                    { IdUsuarioDestino = u.IdUsuario, IdOrden = idOrden, Tipo = "Recepción con diferencia", Mensaje = msg });
                     n++;
                 }
                 return n;

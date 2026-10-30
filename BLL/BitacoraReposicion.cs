@@ -12,20 +12,23 @@ namespace BLL_HRS_480
     {
         public const string MODULO = "Reposición de insumos";
 
-        public const string CONSULTA_STOCK     = "Consulta de stock";
-        public const string SOLICITUD_GENERADA = "Solicitud de compra generada";
-        public const string SOLICITUD_APROBADA = "Solicitud de compra aprobada";
-        public const string SOLICITUD_RECHAZADA = "Solicitud de compra rechazada";
-        public const string ORDEN_EMITIDA      = "Orden de compra emitida y enviada";
-        public const string ERROR_ENVIO        = "Error al enviar orden al proveedor";
-        public const string RECEPCION          = "Recepción de insumos registrada";
-        public const string RECEPCION_DIF      = "Recepción con diferencia";
-        public const string STOCK_ACTUALIZADO  = "Stock actualizado";
-        public const string REEMBOLSO          = "Solicitud de reembolso registrada";
-        public const string OPERACION_RECH     = "Operación de reposición rechazada";
-        public const string ACCESO_DENEGADO    = "Acceso denegado a reposición";
-        public const string ERROR_TECNICO      = "Error técnico de reposición";
-        public const string REPORTE_ORDEN      = "Reporte de orden de compra exportado";
+        public const string CONSULTA_STOCK      = "Consulta de stock";
+        public const string COTIZACION          = "Cotización registrada";            // CUN06
+        public const string COTIZACION_ANULADA  = "Cotización anulada";
+        public const string PREORDEN            = "Pre-orden de compra generada";     // CUN07
+        public const string PROVEEDOR_NUEVO     = "Proveedor nuevo registrado";       // CUN08
+        public const string PAGO_REALIZADO      = "Pago a proveedor realizado";       // CUN09
+        public const string PAGO_RECHAZADO      = "Pago a proveedor rechazado";
+        public const string ORDEN_EMITIDA       = "Orden de compra emitida y enviada";
+        public const string ERROR_ENVIO         = "Error al enviar orden al proveedor";
+        public const string FACTURA_PROVEEDOR   = "Factura de proveedor registrada";  // CUN10
+        public const string RECEPCION           = "Recepción de insumos registrada";
+        public const string RECEPCION_DIF       = "Recepción con diferencia";
+        public const string STOCK_ACTUALIZADO   = "Stock actualizado";
+        public const string OPERACION_RECH      = "Operación de reposición rechazada";
+        public const string ACCESO_DENEGADO     = "Acceso denegado a reposición";
+        public const string ERROR_TECNICO       = "Error técnico de reposición";
+        public const string REPORTE_ORDEN       = "Reporte de orden de compra exportado";
 
         private static readonly object _lock = new object();
         private static readonly Bitacora _bitacora = new Bitacora();
