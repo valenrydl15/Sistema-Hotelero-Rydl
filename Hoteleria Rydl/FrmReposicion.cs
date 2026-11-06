@@ -279,10 +279,19 @@ namespace GUI_HRS_480
 
         private static decimal LeerDecimal(object valor)
         {
-            string s = (valor?.ToString() ?? "").Replace("$", "").Trim();
-            if (decimal.TryParse(s, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal d)) return d;
-            if (decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out d)) return d;
-            return 0;
+            if (valor is decimal dec) return dec;
+            string s = (valor?.ToString() ?? "").Replace("$", "").Replace(" ", "").Trim();
+            if (s.Length == 0) return 0;
+            // Acepta "7500,50", "7500.50", "7.500,50" y "7,500.50" sin importar la configuración regional:
+            // el último separador es el decimal, salvo un único separador seguido de exactamente 3 dígitos ("1.500" = mil quinientos).
+            int ultimo = Math.Max(s.LastIndexOf(','), s.LastIndexOf('.'));
+            bool ambos = s.Contains(',') && s.Contains('.');
+            int cantSep = s.Count(ch => ch == ',' || ch == '.');
+            if (ultimo >= 0 && !ambos && (cantSep > 1 || s.Length - ultimo - 1 == 3))
+                s = s.Replace(",", "").Replace(".", "");                       // solo separadores de miles
+            else if (ultimo >= 0)
+                s = s.Substring(0, ultimo).Replace(",", "").Replace(".", "") + "." + s.Substring(ultimo + 1);
+            return decimal.TryParse(s, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal d) ? d : 0;
         }
 
         // ═════════════════════════════════════════════════════════
