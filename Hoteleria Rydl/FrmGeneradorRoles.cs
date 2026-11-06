@@ -103,6 +103,8 @@ namespace GUI_HRS_480
         {
             if (_rolSeleccionado == null)
             { Msg("Seleccioná un rol de la lista.", esError: true); return; }
+            if (UsuarioMaestro.EsRolMaestro(_rolSeleccionado.Nombre))
+            { Msg("❌ " + UsuarioMaestro.MENSAJE_ROL, esError: true); return; }
 
             _modo = Modo.Modificar;
             lblMensaje.Text = $"Modo Modificar — Rol: {_rolSeleccionado.Nombre}";
@@ -136,6 +138,9 @@ namespace GUI_HRS_480
         {
             if (_rolSeleccionado == null)
             { Msg("Seleccioná un rol para eliminar.", esError: true); return; }
+
+            if (UsuarioMaestro.EsRolMaestro(_rolSeleccionado.Nombre))
+            { Msg("❌ " + UsuarioMaestro.MENSAJE_ROL, esError: true); return; }
 
             if (_rolSeleccionado.Nombre == "Basico")
             { Msg("❌ No se puede eliminar el rol Básico.", esError: true); return; }

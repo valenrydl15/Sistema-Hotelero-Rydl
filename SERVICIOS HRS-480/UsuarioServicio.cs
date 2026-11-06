@@ -35,6 +35,21 @@ namespace SERVICIOS_HRS_480
         }
         public List<Usuario> ObtenerTodos(bool soloActivos) => _uDAL.ObtenerTodos(soloActivos);
 
+        /// <summary>
+        /// Regla del usuario maestro: nadie puede tocarlo salvo él mismo (y solo en lo que se permite).
+        /// Devuelve true si la operación debe rechazarse, y deja el intento en la bitácora.
+        /// </summary>
+        private bool MaestroProtegido(int idUsuarioDestino, string operacion, bool permitirAlPropioMaestro, out string mensaje)
+        {
+            mensaje = "";
+            if (!UsuarioMaestro.Es(idUsuarioDestino)) return false;
+            if (permitirAlPropioMaestro && UsuarioMaestro.Es(IdActual)) return false;
+            mensaje = "❌ " + UsuarioMaestro.MENSAJE;
+            _bDAL.Registrar(IdActual, ID_MOD, EV_MODIFICAR, 1,
+                $"Intento de {operacion} sobre el usuario maestro rechazado.", "RECHAZADO");
+            return true;
+        }
+
         public List<Usuario> ObtenerFiltrado(string dni, string apellido, string nombre,
                                               string login, int? idRol, bool soloActivos)
             => _uDAL.ObtenerFiltrado(dni, apellido, nombre, login, idRol, soloActivos);
@@ -104,6 +119,7 @@ namespace SERVICIOS_HRS_480
         {
             bool dvOk = DigitoVerificadorServicio.EstaConsistente("Usuarios");
             mensaje = "";
+            if (MaestroProtegido(idUsuario, "modificar el email", true, out mensaje)) return false;
             bool ok = _uDAL.ModificarEmail(idUsuario, email?.Trim());
             if (ok)
             {
@@ -121,6 +137,7 @@ namespace SERVICIOS_HRS_480
         {
             bool dvOk = DigitoVerificadorServicio.EstaConsistente("Usuarios");
             mensaje = "";
+            if (MaestroProtegido(idUsuario, "desbloquear / resetear la clave", false, out mensaje)) return false;
             var u = _uDAL.ObtenerPorId(idUsuario);
             if (u == null) { mensaje = "Usuario no encontrado."; return false; }
 
@@ -145,6 +162,7 @@ namespace SERVICIOS_HRS_480
         {
             bool dvOk = DigitoVerificadorServicio.EstaConsistente("Usuarios");
             mensaje = "";
+            if (MaestroProtegido(idUsuario, "activar / desactivar", false, out mensaje)) return false;
             var u = _uDAL.ObtenerPorId(idUsuario);
             if (u == null) { mensaje = "Usuario no encontrado."; return false; }
 
@@ -166,6 +184,7 @@ namespace SERVICIOS_HRS_480
         {
             bool dvOk = DigitoVerificadorServicio.EstaConsistente("Usuarios");
             mensaje = "";
+            if (MaestroProtegido(idUsuarioDestino, "cambiar el rol", false, out mensaje)) return false;
 
             // Validar permiso del usuario en sesión
             if (!UsuarioActualPuedeGestionarPerfiles())

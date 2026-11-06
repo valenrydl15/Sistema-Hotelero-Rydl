@@ -19,6 +19,18 @@ namespace SERVICIOS_HRS_480
         // ══════════════════════════════════════════════════════
         // PERMISOS
         // ══════════════════════════════════════════════════════
+        /// <summary>El rol Administrador es el del usuario maestro: no se modifica ni se elimina.</summary>
+        private bool RolMaestroProtegido(int idRol, string operacion, out string mensaje)
+        {
+            mensaje = "";
+            var rol = _dal.ObtenerTodosRoles().FirstOrDefault(r => r.IdRol == idRol);
+            if (rol == null || !UsuarioMaestro.EsRolMaestro(rol.Nombre)) return false;
+            mensaje = "❌ " + UsuarioMaestro.MENSAJE_ROL;
+            _bitacora.Registrar(SEGURIDAD_HRS_480.SesionManager.Instancia.UsuarioActual?.IdUsuario, ID_MOD, 4, 1,
+                $"Intento de {operacion} el rol Administrador rechazado.", "RECHAZADO");
+            return true;
+        }
+
         public List<Permiso> ObtenerPermisos() => _dal.ObtenerTodosPermisos();
 
         // ══════════════════════════════════════════════════════
@@ -198,6 +210,7 @@ namespace SERVICIOS_HRS_480
         {
             bool dvOk = DigitoVerificadorServicio.EstaConsistente("Roles", "RolPermisos", "RolFamilias");
             mensaje = "";
+            if (RolMaestroProtegido(idRol, "modificar", out mensaje)) return false;
 
             // Desempaquetar: obtener todos los permisos que traen las familias
             var permisosEnFamilias = new List<int>();
@@ -236,6 +249,7 @@ namespace SERVICIOS_HRS_480
             bool dvOk = DigitoVerificadorServicio.EstaConsistente("Roles", "RolPermisos", "RolFamilias", "Usuarios");
             mensaje = "";
             usuariosAfectados = 0;
+            if (RolMaestroProtegido(idRol, "eliminar", out mensaje)) return false;
 
             bool enUso = _dal.RolEstaEnUso(idRol, out int cantUsuarios);
             if (enUso)

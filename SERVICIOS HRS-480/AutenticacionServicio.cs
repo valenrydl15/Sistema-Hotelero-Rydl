@@ -78,6 +78,14 @@ namespace SERVICIOS_HRS_480
                     "Sesión duplicada rechazada.", "FALLIDO");
                 return ResultadoLogin.SesionYaActiva;
             }
+            if (!Encriptacion.Verificar(clavePlana, u.ContrasenaHash) && UsuarioMaestro.Es(u.IdUsuario))
+            {
+                // El usuario maestro no se bloquea por intentos fallidos: si se bloqueara, nadie podría
+                // desbloquearlo (ningún otro usuario puede tocarlo). Cada intento queda en la bitácora como crítico.
+                _bDAL.Registrar(u.IdUsuario, ID_MOD, EV_INTENTO, 1,
+                    "Contraseña incorrecta en el usuario maestro (no se bloquea).", "FALLIDO");
+                return ResultadoLogin.ContrasenaIncorrecta;
+            }
             if (!Encriptacion.Verificar(clavePlana, u.ContrasenaHash))
             {
                 // IntentosFallidos / Bloqueado forman parte del DV de Usuarios

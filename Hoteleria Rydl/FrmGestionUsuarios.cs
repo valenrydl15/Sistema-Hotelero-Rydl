@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using ENTIDADES_HRS_480;
 using SERVICIOS_HRS_480;
+using SEGURIDAD_HRS_480;
 
 namespace GUI_HRS_480
 {
@@ -117,6 +118,24 @@ namespace GUI_HRS_480
             foreach (var item in cmbFilRol.Items)
                 if (item is Rol r && r.IdRol == _seleccionado.IdRol)
                 { cmbFilRol.SelectedItem = item; break; }
+
+            AplicarReglaMaestro();
+        }
+
+        /// <summary>
+        /// Usuario maestro: nadie puede desactivarlo, desbloquearlo/resetearle la clave ni cambiarle el rol.
+        /// Solo él mismo puede modificar su email. (La capa de servicios lo valida igual.)
+        /// </summary>
+        private void AplicarReglaMaestro()
+        {
+            if (_modo != Modo.Consulta || _seleccionado == null) return;
+            bool esMaestro = UsuarioMaestro.Es(_seleccionado.IdUsuario);
+            bool soyMaestro = UsuarioMaestro.Es(SesionManager.Instancia.UsuarioActual?.IdUsuario);
+            SetBotones(crear: true, desbloquear: !esMaestro, modificar: !esMaestro || soyMaestro,
+                       actDesact: !esMaestro, aplicar: false, cancelar: false, salir: true);
+            if (esMaestro)
+                MostrarMensaje(soyMaestro ? "Usuario maestro: solo podés modificar tu email."
+                                          : "Usuario maestro: no puede ser modificado por otros usuarios.", esError: false);
         }
 
         // ============================================================
@@ -129,6 +148,7 @@ namespace GUI_HRS_480
             SetBotones(crear: true, desbloquear: true, modificar: true,
                        actDesact: true, aplicar: false, cancelar: false, salir: true);
             pnlEdicion.Visible = false;
+            AplicarReglaMaestro();
         }
 
         private void SetModoAnadir()
@@ -172,7 +192,7 @@ namespace GUI_HRS_480
             txtEdEmail.Enabled = true;
 
             // El combo de rol solo es editable si tiene permiso
-            cmbRolEdicion.Enabled = _puedeAsignarRoles;
+            cmbRolEdicion.Enabled = _puedeAsignarRoles && !UsuarioMaestro.Es(_seleccionado.IdUsuario);
 
             if (!_puedeAsignarRoles)
                 MostrarMensaje("Podés modificar el email. Para cambiar el rol necesitás el permiso GestionPerfiles.",
