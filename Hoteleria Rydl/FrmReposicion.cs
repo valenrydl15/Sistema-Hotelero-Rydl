@@ -77,6 +77,7 @@ namespace GUI_HRS_480
         public FrmReposicion()
         {
             Construir();
+            AyudaGUI.Instalar(this);
             Load += (s, e) =>
             {
                 var u = SesionManager.Instancia.UsuarioActual;

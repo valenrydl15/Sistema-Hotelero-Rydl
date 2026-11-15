@@ -23,6 +23,7 @@ namespace GUI_HRS_480
             InitializeComponent();
             CrearSeccionMaestros();
             AplicarEstilos();
+            AyudaGUI.Instalar(this);
             Idioma.GestorTraducciones.Instancia.AgregarForm(this);
 
             ActualizarTraducciones();

@@ -53,6 +53,11 @@ Faltantes y solicitud (CUN06 + CUN07) · Cotizaciones y Pre-órdenes (CUN08) · 
   `servidor=smtp.gmail.com` · `puerto=587` · `usuario=...` · `clave=...` · `ssl=true`.
 - `InsumosDAL` quedó marcada obsoleta (la reemplaza `ReposicionDAL`, transaccional).
 
+## Ayuda en cada pantalla
+Todas las pantallas tienen un botón **?** dorado en la esquina superior derecha (`Hoteleria Rydl/AyudaGUI.cs`):
+al pasar el mouse por encima muestra **qué es** la pantalla, **cómo se usa** y **para qué sirve**; con clic o la tecla **F1** abre la misma ayuda en una ventana.
+Los textos de las 16 pantallas están juntos en `AyudaGUI.cs` (uno por formulario), así se actualizan en un solo lugar.
+
 ## Entrega 3 — Menú MAESTROS (serialización XML y bitácora de cambios)
 Sección **MAESTROS** del menú principal. Base de datos: `Scripts/05_SQL_Entrega3_Maestros.sql` (idempotente; la app lo ejecuta sola al iniciar y después de un restore).
 

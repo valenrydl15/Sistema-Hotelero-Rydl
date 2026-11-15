@@ -36,6 +36,7 @@ namespace GUI_HRS_480
         public FrmBitacoraCambios()
         {
             Construir();
+            AyudaGUI.Instalar(this);
             Load += (s, e) => { CargarCombos(); CargarInsumos(); Aplicar(); };
         }
 

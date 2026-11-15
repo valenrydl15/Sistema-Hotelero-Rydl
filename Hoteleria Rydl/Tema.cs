@@ -114,6 +114,7 @@ namespace GUI_HRS_480
         {
             f.BackColor = Fondo;
             Recorrer(f);
+            AyudaGUI.Instalar(f);   // botón "?" de ayuda (mouse encima / clic / F1)
         }
 
         private static readonly string[] _palabrasSecundarias =

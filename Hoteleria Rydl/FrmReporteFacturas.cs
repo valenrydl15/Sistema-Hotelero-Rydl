@@ -24,6 +24,7 @@ namespace GUI_HRS_480
         public FrmReporteFacturas(string nroFacturaInicial = null)
         {
             Construir();
+            AyudaGUI.Instalar(this);
             Load += (s, e) => { Buscar(); Seleccionar(nroFacturaInicial); };
         }
 

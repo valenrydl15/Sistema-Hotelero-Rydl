@@ -49,6 +49,7 @@ namespace GUI_HRS_480
         public FrmRecepcion()
         {
             Construir();
+            AyudaGUI.Instalar(this);
             Load += FrmRecepcion_Load;
         }
 

@@ -37,6 +37,7 @@ namespace GUI_HRS_480
         public FrmMaestroClientes()
         {
             Construir();
+            AyudaGUI.Instalar(this);
             Load += (s, e) => Actualizar();
         }
 

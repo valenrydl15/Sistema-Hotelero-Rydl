@@ -28,6 +28,7 @@ namespace GUI_HRS_480
         public FrmMaestroInsumos()
         {
             Construir();
+            AyudaGUI.Instalar(this);
             Load += (s, e) => Cargar();
         }
 
