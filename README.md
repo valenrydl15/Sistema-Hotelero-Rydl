@@ -23,6 +23,11 @@ Hecho en **C# / Windows Forms (.NET 8)** sobre **SQL Server**, con arquitectura 
 - Roles: *Encargado de Compras* (CUN06, CUN07, CUN08), *Gerente de Compras* (CUN09, CUN10, CUN11), *Encargado de Depósito* (CUN12) y *Administrador* (todo).
 - **Reportes PDF:** orden de compra y listado de órdenes de compra.
 
+**Entrega 3 — Menú Maestros**
+- CUN13 Gestionar maestro de clientes (Recepcionista y Administrador): ABM de los clientes del hotel (huéspedes) y **serialización XML** — Serializar guarda los clientes de la grilla en un XML (ubicación y nombre a elección) y Des-serializar los carga en la grilla desde un XML del disco.
+- Maestro de Insumos (Administrador, Encargado de Compras y de Depósito): alta, modificación y baja lógica.
+- CUN14 Auditar cambios de insumos (Administrador): **bitácora de cambios** `Insumos_C` alimentada por **triggers** de SQL Server; filtros por código, nombre y fechas, y botón Activar para volver a una versión anterior.
+
 ## Arquitectura
 
 | Proyecto | Responsabilidad |
@@ -57,7 +62,8 @@ ssl=true
 ```
 
 ## Documentación
-Los diagramas de casos de uso, DSS, actividad y clases y las especificaciones de los casos de uso se mantuvieron en Enterprise Architect (no están en el repositorio).
+Los diagramas de casos de uso, DSS, actividad y clases y las especificaciones de los casos de uso se mantuvieron en Enterprise Architect.
+La entrega 3 incluye sus diagramas (PNG y PDF), el script para crearlos en EA 12 y capturas de pantalla en `Documentacion/Entrega 3 - Maestros`.
 Ver también `LEEME.md` con el detalle de cambios por entrega.
 
 ## Licencias

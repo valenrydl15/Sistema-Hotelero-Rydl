@@ -53,6 +53,22 @@ Faltantes y solicitud (CUN06 + CUN07) · Cotizaciones y Pre-órdenes (CUN08) · 
   `servidor=smtp.gmail.com` · `puerto=587` · `usuario=...` · `clave=...` · `ssl=true`.
 - `InsumosDAL` quedó marcada obsoleta (la reemplaza `ReposicionDAL`, transaccional).
 
+## Entrega 3 — Menú MAESTROS (serialización XML y bitácora de cambios)
+Sección **MAESTROS** del menú principal. Base de datos: `Scripts/05_SQL_Entrega3_Maestros.sql` (idempotente; la app lo ejecuta sola al iniciar y después de un restore).
+
+- **CUN13 Maestro de Clientes** (`FrmMaestroClientes`, Recepcionista y Administrador). Los clientes del hotel son los **huéspedes** (tabla `Huespedes`, se le agregó `Direccion`; Celular = `Telefono`).
+  - ABM: Actualizar (trae los clientes de la base), Añadir, Modificar, Eliminar (baja lógica) + Aplicar / Cancelar.
+  - **Serializar**: botón de la carpeta → elegir ubicación y nombre del XML → SERIALIZAR guarda los clientes que se ven en la grilla.
+  - **Des-serializar**: botón de la carpeta → elegir el XML → DES-SERIALIZAR los carga en la grilla (fondo amarillo; no se guardan en la base: para guardarlos, Añadir).
+  - **Limpiar** vacía la grilla. No hay base para los XML: quedan en el directorio elegido. Formato: `<Clientes><Cliente><DNI/><Apellidos/><Nombres/><Email/><Celular/><Direccion/></Cliente>…</Clientes>`.
+- **Maestro de Insumos** (`FrmMaestroInsumos`, Administrador, Encargado de Compras y de Depósito): alta, modificación, baja lógica y reactivación.
+- **CUN14 Bitácora de cambios** (`FrmBitacoraCambios`, Administrador). Tabla `Insumos_C` (= PRODUCTOS_C) con todos los datos del insumo + Fecha, Hora, Operación, Usuario y **Act** (1 = versión vigente, una sola por insumo).
+  - Triggers: `TR_Insumos_RegistrarCambio` (AFTER INSERT, UPDATE en Insumos: pasa a Act = 0 la versión vigente e inserta la nueva con Act = 1; también registra los cambios de stock del PN2), `TR_Insumos_BorradoLogico` (INSTEAD OF DELETE: convierte el borrado en Activo = 0), `TR_Insumos_C_SinBorrado` (Insumos_C no admite DELETE) y `TR_Insumos_C_SoloAct` (solo se puede cambiar Act).
+  - Filtros por Código, Nombre, Fecha inicial y final (APLICAR / LIMPIAR). **ACTIVAR** ejecuta `sp_ActivarVersionInsumo`: el insumo vuelve a esos datos y esa versión pasa a Act = 1, sin crear un registro nuevo.
+  - El usuario que hizo cada cambio llega al trigger por `SESSION_CONTEXT` (requiere SQL Server 2016 o posterior).
+- **Ajustes del Dígito Verificador**: el mensaje del login se limpia solo (a los 7 segundos o al volver a escribir); un usuario que no es administrador ya no ve el cartel de error, solo "Contactá al administrador para que lo solucione"; y la bitácora (módulo *Dígito Verificador*) registra la inconsistencia detectada, el recálculo, el backup, el restore y la salida de la reparación sin resolver.
+- Documentación: `Documentacion/Entrega 3 - Maestros` (diagramas PNG/PDF, script `Entrega3_Crear_Diagramas_EA12.js` y capturas).
+
 ## Reportes PDF (un reporte por requisito funcional) — QuestPDF
 - **PN1 Recepción**: botón **Reporte de facturas (PDF)** en la pantalla de Recepción (`FrmReporteFacturas`): lista facturas por período,
   exporta **una factura** o el **listado**. Al confirmar un Check-IN además se ofrece exportar la factura recién emitida.
