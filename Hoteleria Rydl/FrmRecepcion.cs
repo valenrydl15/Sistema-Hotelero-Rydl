@@ -11,12 +11,13 @@ namespace GUI_HRS_480
     /// <summary>
     /// Pantalla única de Recepción (la "GUI" del DSS de CUN01).
     /// Check-IN (con selección de habitación, datos del cliente y cobro)
-    /// y Check-OUT en el mismo formulario. Solo habla con CheckInBLL;
-    /// la BLL es quien lanza los casos de uso incluidos/extendidos.
+    /// y Check-OUT en el mismo formulario. Check-IN habla con CheckInBLL (que lanza los «include»
+    /// CUN02–CUN04); Check-OUT (CUN05, caso de uso independiente) habla con CheckOutBLL.
     /// </summary>
     public class FrmRecepcion : Form
     {
         private readonly CheckInBLL _bll = new CheckInBLL();
+        private readonly CheckOutBLL _checkOut = new CheckOutBLL();   // CUN05
 
         private List<HabitacionBE> _disponibles = new List<HabitacionBE>();
         private HabitacionBE _habitacionSel;
@@ -515,7 +516,7 @@ namespace GUI_HRS_480
         }
 
         // ═════════════════════════════════════════════════════════
-        // CHECK-OUT  (CUN05, lanzado por la BLL)
+        // CHECK-OUT  (CUN05, caso de uso independiente → CheckOutBLL)
         // ═════════════════════════════════════════════════════════
         private void CargarActivas()
         {
@@ -524,7 +525,7 @@ namespace GUI_HRS_480
             LimpiarResumenCheckOut();
             dgvActivas.Rows.Clear();
 
-            _activas = _bll.ObtenerReservasActivas();
+            _activas = _checkOut.ObtenerReservasActivas();
             foreach (var r in _activas)
             {
                 int idx = dgvActivas.Rows.Add(r.IdReserva, r.ApellidoHuesped + ", " + r.NombreHuesped,
@@ -547,7 +548,7 @@ namespace GUI_HRS_480
             if (dgvActivas.SelectedRows.Count == 0 || !(dgvActivas.CurrentRow.Tag is ReservaBE)) return;
 
             var sel = (ReservaBE)dgvActivas.CurrentRow.Tag;
-            var resumen = _bll.CalcularResumenCheckOut(sel.IdReserva);
+            var resumen = _checkOut.CalcularResumenCheckOut(sel.IdReserva);
             if (resumen.Reserva == null) return;
 
             _reservaSel = resumen.Reserva;
@@ -572,7 +573,7 @@ namespace GUI_HRS_480
                 "Confirmar Check-OUT", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (conf != DialogResult.Yes) return;
 
-            var res = _bll.RealizarCheckOut(_reservaSel.IdReserva);
+            var res = _checkOut.RealizarCheckOut(_reservaSel.IdReserva);
             MessageBox.Show(res.Mensaje, res.Exito ? "Check-out realizado" : "No se pudo completar",
                 MessageBoxButtons.OK, res.Exito ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
 

@@ -14,13 +14,12 @@ namespace BLL_HRS_480
     ///   «include» CUN02 SeleccionarHabitacion
     ///   «include» CUN03 RegistrarDatosCliente
     ///   «include» CUN04 RealizarCobro
-    ///   «extend»  CUN05 RealizarCheckOut  (delegado en CheckOutBLL)
+    /// CUN05 Realizar Check-OUT es un caso de uso independiente (CheckOutBLL): no extiende a CUN01.
     /// y después de cada paso envía a BitacoraEventos / DigitoVerificador (sin retorno).
     /// </summary>
     public class CheckInBLL
     {
         private readonly CheckInDAL _dal = new CheckInDAL();
-        private readonly CheckOutBLL _checkOut = new CheckOutBLL();   // CUN05 (extend)
 
         public const decimal PORCENTAJE_IMPUESTOS = 0.21m; // 21% IVA
 
@@ -84,25 +83,26 @@ namespace BLL_HRS_480
                 return new List<HabitacionBE>();
             }
             if (fechaIngreso.Date >= fechaSalida.Date)
-            {
                 mensaje = "❌ La fecha de salida debe ser posterior a la de ingreso.";
-                return new List<HabitacionBE>();
-            }
-            if (fechaIngreso.Date < DateTime.Today)
-            {
+            else if (fechaIngreso.Date < DateTime.Today)
                 mensaje = "❌ La fecha de ingreso no puede ser anterior a hoy.";
+            if (mensaje != "")
+            {
+                BitacoraEventos.Registrar(BitacoraEventos.DISPONIBILIDAD, 5,
+                    $"Consulta de disponibilidad rechazada: {mensaje.TrimStart('❌', ' ')}", "FALLIDO");
                 return new List<HabitacionBE>();
             }
 
             try
             {
+                bool dvOk = DigitoVerificador.Consistente("Habitaciones");   // control de integridad (DS CUN02)
                 var disponibles = _dal.ObtenerHabitacionesDisponibles(fechaIngreso, fechaSalida);
                 if (disponibles.Count == 0)
                     mensaje = "No hay habitaciones disponibles para el período seleccionado.";
 
                 BitacoraEventos.Registrar(BitacoraEventos.DISPONIBILIDAD, 5,
                     $"Consulta {fechaIngreso:dd/MM/yyyy} → {fechaSalida:dd/MM/yyyy}. " +
-                    $"Habitaciones disponibles: {disponibles.Count}.", "EXITOSO");
+                    $"Habitaciones disponibles: {disponibles.Count}. DV Habitaciones: {(dvOk ? "consistente" : "INCONSISTENTE")}.", "EXITOSO");
                 return disponibles;
             }
             catch (Exception ex)
@@ -380,18 +380,5 @@ namespace BLL_HRS_480
                 DigitoVerificador.RecalcularIntegras(integras, tocadas.ToArray());
             }
         }
-
-        // ══════════════════════════════════════════════════════
-        // CUN05 — Realizar Check-OUT («extend» de CUN01)
-        // La BLL de Check-IN lo lanza; la pantalla solo habla con esta clase.
-        // ══════════════════════════════════════════════════════
-        public List<ReservaBE> ObtenerReservasActivas()
-            => ControlAcceso.PuedeOperarRecepcion() ? _checkOut.ObtenerReservasActivas() : new List<ReservaBE>();
-
-        public ResumenCheckOutBE CalcularResumenCheckOut(int idReserva)
-            => _checkOut.CalcularResumenCheckOut(idReserva);
-
-        public ResultadoOperacionBE RealizarCheckOut(int idReserva)
-            => _checkOut.RealizarCheckOut(idReserva);
     }
 }

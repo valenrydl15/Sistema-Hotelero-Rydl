@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using DAL_HRS_480;
@@ -8,8 +8,8 @@ using SEGURIDAD_HRS_480;
 namespace BLL_HRS_480
 {
     /// <summary>
-    /// CUN05 — Realizar Check-OUT («extend» de CUN01).
-    /// Lo lanza CheckInBLL; registra en Bitácora y recalcula DV al terminar.
+    /// CUN05 — Realizar Check-OUT. Caso de uso independiente (no extiende a CUN01):
+    /// el recepcionista lo inicia cuando el huésped termina su estadía. Registra en Bitácora y recalcula DV.
     /// </summary>
     public class CheckOutBLL
     {
@@ -19,7 +19,7 @@ namespace BLL_HRS_480
             SesionManager.Instancia.UsuarioActual?.IdUsuario ?? 0;
 
         public List<ReservaBE> ObtenerReservasActivas()
-            => _dal.ObtenerReservasConCheckIn();
+            => ControlAcceso.PuedeOperarRecepcion() ? _dal.ObtenerReservasConCheckIn() : new List<ReservaBE>();
 
         public ResumenCheckOutBE CalcularResumenCheckOut(int idReserva)
         {
