@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Data.SqlClient;
@@ -26,9 +26,41 @@ namespace DAL_HRS_480
         /// <summary>Servidor/instancia en uso (útil para mostrarlo en pantalla o en el log).</summary>
         public static string Servidor => Resolver().DataSource;
 
+        /// <summary>
+        /// Devuelve el Id del usuario en sesión. Lo asigna la GUI al iniciar (Program.cs).
+        /// Se usa para que los TRIGGERS de la bitácora de cambios sepan quién hizo cada cambio.
+        /// </summary>
+        public static Func<int?> ProveedorUsuario { get; set; }
+
         /// <summary>Conexión a la base del sistema (misma firma que antes).</summary>
         public static SqlConnection ObtenerConexion()
-            => new SqlConnection(Construir(NombreBD));
+        {
+            var con = new SqlConnection(Construir(NombreBD));
+            con.StateChange += AlAbrirConexion;
+            return con;
+        }
+
+        /// <summary>
+        /// Al abrir la conexión deja el usuario en sesión en SESSION_CONTEXT(N'IdUsuario'),
+        /// que leen los triggers de Insumos para registrar quién hizo el cambio en Insumos_C.
+        /// </summary>
+        private static void AlAbrirConexion(object sender, System.Data.StateChangeEventArgs e)
+        {
+            if (e.CurrentState != System.Data.ConnectionState.Open) return;
+            int? id = null;
+            try { id = ProveedorUsuario?.Invoke(); } catch { }
+            if (id == null) return;
+            try
+            {
+                using var cmd = new SqlCommand("EXEC sp_set_session_context @key = N'IdUsuario', @value = @v;", (SqlConnection)sender);
+                cmd.Parameters.AddWithValue("@v", id.Value);
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                // SQL Server anterior a 2016 o sin permiso: la bitácora de cambios queda sin usuario
+            }
+        }
 
         /// <summary>Conexión a master, para BACKUP / RESTORE.</summary>
         public static SqlConnection ObtenerConexionMaster()

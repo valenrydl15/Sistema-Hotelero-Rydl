@@ -6,10 +6,15 @@ namespace GUI_HRS_480
     public partial class FrmLogin : Form, Idioma.IObserver
     {
         private readonly AutenticacionServicio _servicio = new AutenticacionServicio();
+        // Los mensajes del login (incluido el del Dígito Verificador) se limpian solos
+        private readonly System.Windows.Forms.Timer _timerMensaje = new System.Windows.Forms.Timer { Interval = 7000 };
         public FrmLogin()
         {
             InitializeComponent();
             Tema.Aplicar(this);
+            _timerMensaje.Tick += (s, e) => LimpiarMensaje();
+            txtUsuario.TextChanged += (s, e) => LimpiarMensaje();
+            txtClave.TextChanged += (s, e) => LimpiarMensaje();
             Idioma.GestorTraducciones.Instancia.AgregarForm(this);
             ActualizarTraducciones();
 
@@ -53,32 +58,26 @@ namespace GUI_HRS_480
 
                 // ── INCONSISTENCIA DE DÍGITO VERIFICADOR ──────────
                 case ResultadoLogin.InconsistenciaDV:
+                    txtClave.Clear();   // antes del mensaje: borrar la clave limpia el mensaje
                     if (usuarioLogueado?.NombreRol == "Administrador")
                     {
-                        // Admin: abrir formulario de reparación
-                        var frmRep = new FrmReparacionDV(
-                            _servicio.UltimaVerificacionDV,
-                            usuarioLogueado);
-                        frmRep.ShowDialog(this);
-
-                        // Si resolvió el problema, intentar login de nuevo automáticamente
-                        Mensaje("Inconsistencia resuelta. Iniciá sesión nuevamente.",
-                                       ok: false);
+                        // Admin: abrir formulario de reparación (recalcular o restaurar un backup)
+                        LimpiarMensaje();
+                        using (var frmRep = new FrmReparacionDV(_servicio.UltimaVerificacionDV, usuarioLogueado))
+                        {
+                            var r = frmRep.ShowDialog(this);
+                            Mensaje(r == DialogResult.OK
+                                        ? "Inconsistencia resuelta. Iniciá sesión nuevamente."
+                                        : "La inconsistencia sigue pendiente de resolución.",
+                                    ok: r == DialogResult.OK);
+                        }
                     }
                     else
                     {
-                        // Usuario normal: solo ve el cartel de advertencia
-                        MessageBox.Show(
-                            "⚠ Se detectó una inconsistencia en los datos del sistema.\n\n" +
-                            "Por favor, contactá al Administrador para resolver el problema\n" +
-                            "antes de poder acceder al sistema.",
-                            "Inconsistencia detectada",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Stop);
-                        Mensaje("Acceso bloqueado. Contactá al administrador.", ok: true);
+                        // Usuario no administrador: sin carteles de error, solo el aviso de contactar al administrador
+                        Mensaje("El sistema no está disponible en este momento. Contactá al administrador para que lo solucione.", ok: false);
                     }
                     break;
-                
 
                 case ResultadoLogin.UsuarioNoEncontrado:
                     Mensaje("Usuario no encontrado.", false);
@@ -122,8 +121,16 @@ namespace GUI_HRS_480
             Mensaje("Contraseña actualizada. Iniciá sesión nuevamente.", ok: false);
         }
 
+        private void LimpiarMensaje()
+        {
+            _timerMensaje.Stop();
+            lblMensaje.Text = "";
+        }
+
         private void Mensaje(string texto, bool ok)
         {
+            _timerMensaje.Stop();
+            _timerMensaje.Start();   // se limpia solo a los pocos segundos o cuando el usuario vuelve a escribir
             lblMensaje.Text = texto;
             lblMensaje.ForeColor = ok
                 ? System.Drawing.Color.FromArgb(30, 130, 70)

@@ -55,6 +55,16 @@ namespace BLL_HRS_480
         /// <summary>CUN12 Registrar recepción de insumos: Encargado de Depósito.</summary>
         public static bool PuedeRegistrarRecepcionInsumos() => RolEn(ROL_ADMIN) || EsDeposito();
 
+        // ── Entrega 3: menú MAESTROS ─────────────────────────────────────────
+        /// <summary>CUN13 Maestro de Clientes (ABM + serializar/des-serializar XML): Administrador y Recepcionista.</summary>
+        public static bool PuedeGestionarClientes() => RolEn(ROL_ADMIN, ROL_RECEPCIONISTA);
+        /// <summary>Maestro de Insumos (alta, modificación, baja lógica): Administrador, Encargado de Compras y de Depósito.</summary>
+        public static bool PuedeGestionarInsumos() => RolEn(ROL_ADMIN, ROL_COMPRAS) || EsDeposito();
+        /// <summary>CUN14 Bitácora de cambios de insumos (consultar y activar versiones): solo Administrador.</summary>
+        public static bool PuedeAuditarCambios() => RolEn(ROL_ADMIN);
+        /// <summary>Ver el menú Maestros.</summary>
+        public static bool PuedeAccederMaestros() => PuedeGestionarClientes() || PuedeGestionarInsumos() || PuedeAuditarCambios();
+
         private static string Normalizar(string s)
         {
             if (string.IsNullOrWhiteSpace(s)) return "";

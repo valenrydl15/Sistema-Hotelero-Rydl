@@ -169,6 +169,9 @@ namespace GUI_HRS_480
 
         private void btnSalir_Click(object sender, EventArgs e)
         {
+            BitacoraModulo.Registrar(BitacoraModulo.MOD_DV, BitacoraModulo.DV_CANCELADA, 2,
+                "El administrador salió de la reparación del DV sin recalcular ni restaurar. Tablas: " +
+                string.Join(", ", _resultado.Inconsistencias.Select(i => i.NombreTabla).Distinct()) + ".", "CANCELADO", _admin?.IdUsuario);
             MessageBox.Show(
                 "Saliendo sin resolver la inconsistencia.\n" +
                 "El sistema permanecerá bloqueado hasta que un administrador\n" +

@@ -18,6 +18,9 @@ namespace GUI_HRS_480
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            // Los triggers de la bitácora de cambios registran quién hizo cada cambio
+            ConexionDB.ProveedorUsuario = () => SesionManager.Instancia.UsuarioActual?.IdUsuario;
+
             try
             {
                 InicializarDB();
@@ -68,6 +71,7 @@ namespace GUI_HRS_480
 
             AsegurarEventosYDV();
             AsegurarReposicion();
+            AsegurarMaestros();
             AsegurarHashAdmin();
 
             // Una sola vez por base: pasa el DV al formato independiente de la configuración regional
@@ -246,6 +250,18 @@ WHERE v.t NOT IN (SELECT NombreTabla FROM DigitoVerificador);";
                     "\n\nEjecutá a mano el script Scripts\\02_SQL_PN2_Reposicion.sql en SQL Server. " +
                     "El resto del sistema funciona con normalidad.",
                     "Reposición de insumos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        // Entrega 3 (menú Maestros): Direccion de huéspedes, Insumos_C + triggers y eventos de bitácora. Idempotente.
+        private static void AsegurarMaestros()
+        {
+            string? error = MaestrosSetup.Asegurar();
+            if (error != null)
+                MessageBox.Show(
+                    "No se pudo preparar la base para el menú Maestros.\n\n" + error +
+                    "\n\nEjecutá a mano el script Scripts\\05_SQL_Entrega3_Maestros.sql en SQL Server. " +
+                    "El resto del sistema funciona con normalidad.",
+                    "Maestros", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         private static void AsegurarHashAdmin()

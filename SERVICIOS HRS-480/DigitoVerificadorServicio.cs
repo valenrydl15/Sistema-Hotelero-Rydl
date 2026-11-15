@@ -265,6 +265,9 @@ namespace SERVICIOS_HRS_480
                 RecalcularYGuardar(inc.NombreTabla);
                 _dal.MarcarInconsistenciaResuelta(inc.IdInconsistencia, "RECALCULO");
             }
+            string tablas = string.Join(", ", inconsistencias.Select(i => i.NombreTabla).Distinct());
+            BitacoraModulo.Registrar(BitacoraModulo.MOD_DV, BitacoraModulo.DV_RECALCULADO, 1,
+                $"DV recalculado por el administrador: el estado actual pasa a ser el válido. Tablas: {tablas}.", "EXITOSO");
         }
 
         // ──────────────────────────────────────────────────────
@@ -297,6 +300,8 @@ namespace SERVICIOS_HRS_480
             string rutaArchivo = Path.Combine(CarpetaBackups, nombreArchivo);
 
             _dal.EjecutarBackupSQLServer(rutaArchivo);
+            BitacoraModulo.Registrar(BitacoraModulo.MOD_DV, BitacoraModulo.DV_BACKUP, 2,
+                $"Backup de la base generado: {nombreArchivo} (carpeta {CarpetaBackups}).", "EXITOSO");
             return rutaArchivo;
         }
 
@@ -313,31 +318,21 @@ namespace SERVICIOS_HRS_480
 
             _dal.EjecutarRestoreSQLServer(rutaArchivoBak);
 
-            // Un backup anterior a PN2 no trae las tablas de reposición: se vuelven a crear antes de recalcular
+            // Un backup anterior a PN2 / entrega 3 no trae las tablas nuevas: se vuelven a crear antes de recalcular
             ReposicionSetup.Asegurar();
+            MaestrosSetup.Asegurar();
+            BitacoraModulo.Reiniciar();
 
             RecalcularTodo();
 
             foreach (var inc in inconsistencias)
                 _dal.MarcarInconsistenciaResuelta(inc.IdInconsistencia, "RESTORE");
 
-            // Registrar en bitácora quién hizo el restore y desde qué archivo
-            try
-            {
-                string nombreArchivo = Path.GetFileName(rutaArchivoBak);
-                string usuario = SesionManager.Instancia.UsuarioActual?.NombreUsuario
-                                       ?? "Administrador";
-                int? idUsuario = SesionManager.Instancia.UsuarioActual?.IdUsuario;
-
-                _bDAL.Registrar(
-                    idUsuario,
-                    idModulo: 1,
-                    idTipoEvento: 10,   // ajustá al id que corresponda en tu tabla TiposEvento
-                    criticidad: 1,
-                    detalle: $"RESTORE ejecutado desde archivo: {nombreArchivo}. Usuario: {usuario}.",
-                    resultado: "EXITOSO");
-            }
-            catch { /* la bitácora no debe bloquear el restore */ }
+            // Se registra DESPUÉS del restore: así el evento queda en la base restaurada
+            string tablas = string.Join(", ", inconsistencias.Select(i => i.NombreTabla).Distinct());
+            BitacoraModulo.Registrar(BitacoraModulo.MOD_DV, BitacoraModulo.DV_RESTORE, 1,
+                $"Restore ejecutado desde el backup {Path.GetFileName(rutaArchivoBak)}" +
+                (tablas.Length > 0 ? $" para resolver la inconsistencia del DV en: {tablas}." : "."), "EXITOSO");
         }
 
         /// <summary>

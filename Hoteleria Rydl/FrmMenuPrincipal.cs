@@ -21,6 +21,7 @@ namespace GUI_HRS_480
         public FrmMenuPrincipal()
         {
             InitializeComponent();
+            CrearSeccionMaestros();
             AplicarEstilos();
             Idioma.GestorTraducciones.Instancia.AgregarForm(this);
 
@@ -49,13 +50,15 @@ namespace GUI_HRS_480
         // Estilo visual (colores y fuentes compartidos en Tema.cs)
         private void AplicarEstilos()
         {
-            foreach (var b in new[] { btnCheckin, btnInsumos, btnUsuarios, btnBitacora, btnGenerarFamilia,
+            foreach (var b in new[] { btnCheckin, btnInsumos, btnMaestroClientes, btnMaestroInsumos, btnBitacoraCambios,
+                                      btnUsuarios, btnBitacora, btnGenerarFamilia,
                                       btnGenerarRoles, menuAdminBackup, menuAdminRestore,
                                       btnCambiarClave, btnCambiarIdioma, btnReeLogin })
                 Tema.BotonLateral(b);
 
             // En el FlowLayoutPanel el Dock no aplica: el ancho lo da el tamaño
-            foreach (var b in new[] { btnCheckin, btnInsumos, btnUsuarios, btnBitacora, btnGenerarFamilia,
+            foreach (var b in new[] { btnCheckin, btnInsumos, btnMaestroClientes, btnMaestroInsumos, btnBitacoraCambios,
+                                      btnUsuarios, btnBitacora, btnGenerarFamilia,
                                       btnGenerarRoles, menuAdminBackup, menuAdminRestore,
                                       btnCambiarClave, btnCambiarIdioma, btnReeLogin })
             {
@@ -63,7 +66,7 @@ namespace GUI_HRS_480
                 b.Size = new Size(270, 40);
             }
 
-            foreach (var l in new[] { lblSecOperacion, lblSecAdmin, lblSecCuenta })
+            foreach (var l in new[] { lblSecOperacion, lblSecMaestros, lblSecAdmin, lblSecCuenta })
             {
                 l.ForeColor = Color.FromArgb(120, 140, 175);
                 l.Font = Tema.Fuente(8f, FontStyle.Bold);
@@ -117,6 +120,37 @@ namespace GUI_HRS_480
             // Reposición de insumos: Administrador, Encargado de Compras, Gerente de Compras y Encargado de Depósito
             btnInsumos.Visible = ControlAcceso.PuedeAccederReposicion();
             lblSecOperacion.Visible = puedeRecepcion || btnInsumos.Visible;
+
+            // Maestros (entrega 3)
+            btnMaestroClientes.Visible = ControlAcceso.PuedeGestionarClientes();
+            btnMaestroInsumos.Visible = ControlAcceso.PuedeGestionarInsumos();
+            btnBitacoraCambios.Visible = ControlAcceso.PuedeAuditarCambios();
+            lblSecMaestros.Visible = ControlAcceso.PuedeAccederMaestros();
+        }
+
+        // ══════════════════════════════════════════════════════
+        // MENÚ MAESTROS: Maestro de Clientes (CUN13), Maestro de Insumos
+        // y Bitácora de cambios (CUN14). Se agrega debajo de OPERACIÓN.
+        // ══════════════════════════════════════════════════════
+        private Label lblSecMaestros;
+        private Button btnMaestroClientes, btnMaestroInsumos, btnBitacoraCambios;
+
+        private void CrearSeccionMaestros()
+        {
+            lblSecMaestros = new Label { Name = "lblSecMaestros", AutoSize = false, Size = new Size(270, 30), Text = "MAESTROS", Margin = new Padding(0) };
+            btnMaestroClientes = new Button { Name = "btnMaestroClientes", Text = "Maestro de Clientes", Margin = new Padding(0) };
+            btnMaestroInsumos = new Button { Name = "btnMaestroInsumos", Text = "Maestro de Insumos", Margin = new Padding(0) };
+            btnBitacoraCambios = new Button { Name = "btnBitacoraCambios", Text = "Bitácora de Cambios", Margin = new Padding(0) };
+            btnMaestroClientes.Click += (s, e) => { using var f = new FrmMaestroClientes(); f.ShowDialog(this); };
+            btnMaestroInsumos.Click += (s, e) => { using var f = new FrmMaestroInsumos(); f.ShowDialog(this); };
+            btnBitacoraCambios.Click += (s, e) => { using var f = new FrmBitacoraCambios(); f.ShowDialog(this); };
+
+            int pos = pnlNav.Controls.GetChildIndex(lblSecAdmin);
+            foreach (Control c in new Control[] { lblSecMaestros, btnMaestroClientes, btnMaestroInsumos, btnBitacoraCambios })
+            {
+                pnlNav.Controls.Add(c);
+                pnlNav.Controls.SetChildIndex(c, pos++);
+            }
         }
 
         private string _textoBienvenida = "Bienvenido/a | Rol:";

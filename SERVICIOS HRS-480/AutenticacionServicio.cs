@@ -108,10 +108,12 @@ namespace SERVICIOS_HRS_480
             if (!UltimaVerificacionDV.Consistente)
             {
                 // Registrar en bitácora
-                _bDAL.Registrar(u.IdUsuario, ID_MOD, EV_INTENTO, 1,
-     "Inconsistencia de DV detectada en login. Tablas afectadas: " +
-     string.Join(", ", UltimaVerificacionDV.Inconsistencias.Select(i => i.NombreTabla)),
-     "FALLIDO");
+                bool esAdmin = u.NombreRol == "Administrador";
+                BitacoraModulo.Registrar(BitacoraModulo.MOD_DV, BitacoraModulo.DV_INCONSISTENCIA, 1,
+                    "Inconsistencia de DV detectada al iniciar sesión. Tablas afectadas: " +
+                    string.Join(", ", UltimaVerificacionDV.Inconsistencias.Select(i => i.NombreTabla).Distinct()) +
+                    (esAdmin ? ". Se abre la reparación del DV." : ". Usuario no administrador: acceso bloqueado, se le pide contactar al administrador."),
+                    "FALLIDO", u.IdUsuario);
 
                 // Guardar al usuario logueado para que FrmLogin sepa si es admin
                 usuarioLogueado = u;
