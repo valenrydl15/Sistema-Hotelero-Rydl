@@ -95,3 +95,10 @@ Sección **MAESTROS** del menú principal. Base de datos: `Scripts/05_SQL_Entreg
 - Paquete NuGet `QuestPDF` (licencia Community, gratuita para uso académico). Se restaura solo al compilar (requiere internet la primera vez).
 - Bitácora: eventos `Reporte de factura exportado` y `Reporte de orden de compra exportado` (los agrega la app al iniciar; también `Scripts/03_SQL_Reportes.sql`).
 - Los reportes no modifican tablas, así que no afectan los dígitos verificadores.
+
+## A01 — Instalador y reinstalador (Inno Setup 6)
+Carpeta `Instalador/`. Un solo `.exe` pregunta al iniciar si se va a **Instalar** (programa + base HotelRydlDB, pide la carpeta; si la base existe ofrece backup y pide doble confirmación) o **Reinstalar** (solo el programa en la carpeta donde ya está instalado, que se busca sola; la base, los backups, `conexion.txt` y `correo.txt` no se tocan).
+- `publicar.bat`: publica el programa self-contained (win-x64) en `Instalador\publicar` y compila el `.iss`. Resultado: `Instalador\salida\Instalador_HotelRydl_v3.0.exe`.
+- `HotelRydl_Instalador.iss`: script de Inno Setup (páginas, confirmaciones, búsqueda de la instalación, registro `HKLM\Software\HotelRydl\SIH`).
+- `BaseDatos.ps1`: Verificar / Instalar (backup + RESTORE del .bak inicial) / Credenciales del administrador.
+- `LEEME_Instalador.txt`: manual rápido que se instala con el programa.

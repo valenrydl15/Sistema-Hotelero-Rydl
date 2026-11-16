@@ -1,0 +1,45 @@
+HOTEL RYDL - SIH (Sistema Integrado de Hotelería) - HRS-480
+Manual rápido de instalación y reinstalación - versión 3.0
+================================================================
+
+REQUISITOS
+- Windows 10 u 11 de 64 bits.
+- SQL Server 2016 o superior (sirve SQL Server Express), instalado en el mismo equipo.
+- Ejecutar el instalador con un usuario administrador de Windows que pueda conectarse
+  a SQL Server (autenticación de Windows).
+- No hace falta instalar .NET: el programa ya lo trae incluido.
+
+AL ABRIR EL INSTALADOR (Instalador_HotelRydl_v3.0.exe) se elige qué hacer:
+
+1) INSTALAR  (programa + base de datos)
+   - Usala la primera vez, o cuando quieras empezar de cero.
+   - Pide la carpeta donde instalar (por defecto C:\Program Files\Hotel Rydl).
+   - Crea la base HotelRydlDB desde el backup inicial.
+   - Si la base YA EXISTE, la REEMPLAZA: antes ofrece hacer un backup y pide
+     varias confirmaciones, porque se pierden los datos cargados.
+   - Al terminar muestra el usuario administrador para el primer ingreso.
+
+2) REINSTALAR  (solo el programa)
+   - Usala para actualizar o reparar el programa.
+   - Busca sola la carpeta donde está instalado y reinstala ahí
+     (si no la encuentra, te deja elegirla a mano).
+   - NO toca la base de datos HotelRydlDB, ni los backups,
+     ni los archivos conexion.txt y correo.txt.
+
+CONFIGURACIÓN OPCIONAL (en la carpeta del programa)
+- conexion.txt : nombre del servidor de SQL Server (ej.: MIPC\SQLEXPRESS) o una cadena
+                 de conexión completa. Si no existe, el programa detecta la instancia solo.
+- correo.txt   : datos SMTP para enviar los correos a proveedores (si no existe, se simulan).
+
+DESINSTALAR
+- Inicio > Hotel Rydl > Desinstalar Hotel Rydl (o Configuración > Aplicaciones).
+- Borra el programa. La base HotelRydlDB y la carpeta Backups NO se borran.
+
+PROBLEMAS FRECUENTES
+- "No se encontró SQL Server": instalá SQL Server Express y volvé a ejecutar el instalador.
+  Si ya está instalado, verificá que el servicio "SQL Server (SQLEXPRESS)" esté iniciado.
+- "No se pudo instalar la base de datos": mirá el detalle en Logs\instalacion_bd.log.
+  El programa igual intenta crear la base la primera vez que se abre.
+- La herramienta de base de datos queda en la subcarpeta Instalador (BaseDatos.ps1)
+  para ejecutarla a mano si hace falta:
+  powershell -ExecutionPolicy Bypass -File BaseDatos.ps1 -Accion Verificar
