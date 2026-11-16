@@ -221,6 +221,19 @@ namespace GUI_HRS_480
                 },
                 ParaQue = "Auditar quién cambió cada insumo, qué cambió y cuándo, y deshacer un cambio si hace falta."
             },
+            ["FrmReportePredictivo"] = new Ayuda
+            {
+                Titulo = "Reporte inteligente predictivo de ocupación",
+                QueEs = "Estima la ocupación del hotel de los próximos 7 días a partir de las estadías de los últimos 28 días y de las reservas ya confirmadas.",
+                ComoSeUsa = new[]
+                {
+                    "Arriba: noches vendidas, ocupación histórica, ocupación prevista e ingreso estimado.",
+                    "Panorama general: barra de ocupación estimada por día (color según el nivel) y la lectura de los resultados.",
+                    "Detalle por día y Por tipo de habitación: confirmadas, proyección, estimadas, nivel, ingreso y recomendación.",
+                    "Insumos a reponer: insumos críticos priorizados según la ocupación prevista. ACTUALIZAR vuelve a calcular.",
+                },
+                ParaQue = "Anticipar días de alta o baja demanda, planificar personal, tarifas y promociones, y reponer insumos antes de que falten."
+            },
         };
 
         /// <summary>Agrega el botón de ayuda "?" y la tecla F1 al formulario (si tiene texto de ayuda).</summary>

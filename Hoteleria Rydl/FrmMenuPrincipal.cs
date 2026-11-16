@@ -22,6 +22,7 @@ namespace GUI_HRS_480
         {
             InitializeComponent();
             CrearSeccionMaestros();
+            CrearSeccionReportes();
             AplicarEstilos();
             AyudaGUI.Instalar(this);
             Idioma.GestorTraducciones.Instancia.AgregarForm(this);
@@ -51,14 +52,14 @@ namespace GUI_HRS_480
         // Estilo visual (colores y fuentes compartidos en Tema.cs)
         private void AplicarEstilos()
         {
-            foreach (var b in new[] { btnCheckin, btnInsumos, btnMaestroClientes, btnMaestroInsumos, btnBitacoraCambios,
+            foreach (var b in new[] { btnCheckin, btnInsumos, btnMaestroClientes, btnMaestroInsumos, btnBitacoraCambios, btnReportePredictivo,
                                       btnUsuarios, btnBitacora, btnGenerarFamilia,
                                       btnGenerarRoles, menuAdminBackup, menuAdminRestore,
                                       btnCambiarClave, btnCambiarIdioma, btnReeLogin })
                 Tema.BotonLateral(b);
 
             // En el FlowLayoutPanel el Dock no aplica: el ancho lo da el tamaño
-            foreach (var b in new[] { btnCheckin, btnInsumos, btnMaestroClientes, btnMaestroInsumos, btnBitacoraCambios,
+            foreach (var b in new[] { btnCheckin, btnInsumos, btnMaestroClientes, btnMaestroInsumos, btnBitacoraCambios, btnReportePredictivo,
                                       btnUsuarios, btnBitacora, btnGenerarFamilia,
                                       btnGenerarRoles, menuAdminBackup, menuAdminRestore,
                                       btnCambiarClave, btnCambiarIdioma, btnReeLogin })
@@ -67,7 +68,7 @@ namespace GUI_HRS_480
                 b.Size = new Size(270, 40);
             }
 
-            foreach (var l in new[] { lblSecOperacion, lblSecMaestros, lblSecAdmin, lblSecCuenta })
+            foreach (var l in new[] { lblSecOperacion, lblSecMaestros, lblSecReportes, lblSecAdmin, lblSecCuenta })
             {
                 l.ForeColor = Color.FromArgb(120, 140, 175);
                 l.Font = Tema.Fuente(8f, FontStyle.Bold);
@@ -127,6 +128,9 @@ namespace GUI_HRS_480
             btnMaestroInsumos.Visible = ControlAcceso.PuedeGestionarInsumos();
             btnBitacoraCambios.Visible = ControlAcceso.PuedeAuditarCambios();
             lblSecMaestros.Visible = ControlAcceso.PuedeAccederMaestros();
+
+            // Reportes (A02 Reporte Inteligente Predictivo)
+            btnReportePredictivo.Visible = lblSecReportes.Visible = ControlAcceso.PuedeVerReportePredictivo();
         }
 
         // ══════════════════════════════════════════════════════
@@ -148,6 +152,26 @@ namespace GUI_HRS_480
 
             int pos = pnlNav.Controls.GetChildIndex(lblSecAdmin);
             foreach (Control c in new Control[] { lblSecMaestros, btnMaestroClientes, btnMaestroInsumos, btnBitacoraCambios })
+            {
+                pnlNav.Controls.Add(c);
+                pnlNav.Controls.SetChildIndex(c, pos++);
+            }
+        }
+
+        // ══════════════════════════════════════════════════════
+        // MENÚ REPORTES: A02 Reporte Inteligente Predictivo de ocupación.
+        // Se agrega debajo de MAESTROS.
+        // ══════════════════════════════════════════════════════
+        private Label lblSecReportes;
+        private Button btnReportePredictivo;
+
+        private void CrearSeccionReportes()
+        {
+            lblSecReportes = new Label { Name = "lblSecReportes", AutoSize = false, Size = new Size(270, 30), Text = "REPORTES", Margin = new Padding(0) };
+            btnReportePredictivo = new Button { Name = "btnReportePredictivo", Text = "Reporte Predictivo", Margin = new Padding(0) };
+            btnReportePredictivo.Click += (s, e) => { using var f = new FrmReportePredictivo(); f.ShowDialog(this); };
+            int pos = pnlNav.Controls.GetChildIndex(lblSecAdmin);
+            foreach (Control c in new Control[] { lblSecReportes, btnReportePredictivo })
             {
                 pnlNav.Controls.Add(c);
                 pnlNav.Controls.SetChildIndex(c, pos++);

@@ -209,6 +209,8 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Modulos WHERE Nombre = N'Maestros')
     INSERT INTO dbo.Modulos (Nombre) VALUES (N'Maestros');
 IF NOT EXISTS (SELECT 1 FROM dbo.Modulos WHERE Nombre = N'Dígito Verificador')
     INSERT INTO dbo.Modulos (Nombre) VALUES (N'Dígito Verificador');
+IF NOT EXISTS (SELECT 1 FROM dbo.Modulos WHERE Nombre = N'Reportes')
+    INSERT INTO dbo.Modulos (Nombre) VALUES (N'Reportes');
 GO
 
 DECLARE @ev TABLE (Modulo NVARCHAR(100), Nombre NVARCHAR(100), Criticidad INT);
@@ -229,7 +231,10 @@ INSERT INTO @ev VALUES
  (N'Dígito Verificador', N'DV recalculado',                 1),
  (N'Dígito Verificador', N'Backup generado',                2),
  (N'Dígito Verificador', N'Restore de backup ejecutado',    1),
- (N'Dígito Verificador', N'Reparación de DV cancelada',     2);
+ (N'Dígito Verificador', N'Reparación de DV cancelada',     2),
+ (N'Reportes', N'Reporte predictivo generado',              5),
+ (N'Reportes', N'Acceso denegado a reportes',               3),
+ (N'Reportes', N'Error técnico en reportes',                1);
 
 INSERT INTO dbo.TiposEvento (IdModulo, Nombre, Criticidad)
 SELECT m.IdModulo, e.Nombre, e.Criticidad

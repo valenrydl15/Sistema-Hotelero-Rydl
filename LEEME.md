@@ -74,6 +74,18 @@ Sección **MAESTROS** del menú principal. Base de datos: `Scripts/05_SQL_Entreg
 - **Ajustes del Dígito Verificador**: el mensaje del login se limpia solo (a los 7 segundos o al volver a escribir); un usuario que no es administrador ya no ve el cartel de error, solo "Contactá al administrador para que lo solucione"; y la bitácora (módulo *Dígito Verificador*) registra la inconsistencia detectada, el recálculo, el backup, el restore y la salida de la reparación sin resolver.
 - Documentación: `Documentacion/Entrega 3 - Maestros` (diagramas PNG/PDF, script `Entrega3_Crear_Diagramas_EA12.js` y capturas).
 
+## A02 — Reporte Inteligente Predictivo de ocupación (menú REPORTES)
+
+- **Acceso:** Administrador, Recepcionista y Gerente de Compras (`ControlAcceso.PuedeVerReportePredictivo`).
+- **Qué hace:** toma las estadías de los últimos **28 días completos** (reservas en estado CheckIn/CheckOut) y proyecta los **próximos 7 días**.
+  - *Proyección* de cada día = promedio de habitaciones ocupadas los mismos días de la semana de las últimas 4 semanas.
+  - *Estimadas* = el mayor valor entre las reservas ya confirmadas (Pendiente/Confirmada/CheckIn) y la proyección, sin superar la capacidad.
+  - Ocupación %, nivel (Completo ≥ 90 %, Alta ≥ 70 %, Media ≥ 40 %, Baja), ingreso estimado con 21 % de impuestos y recomendaciones.
+  - Prioriza los insumos críticos según la ocupación prevista (vínculo con el PN2).
+- **Pantalla:** `FrmReportePredictivo` con 4 indicadores y 4 pestañas (Panorama general, Detalle por día, Por tipo de habitación, Insumos a reponer).
+- **Capas:** `ReportePredictivoDAL` (solo lectura) → `ReportePredictivoBLL` (`Calcular` es un cálculo puro, probado con datos de ejemplo) → GUI.
+- Es de solo lectura (no toca DV). Cada generación queda en la bitácora: módulo **Reportes**, evento *Reporte predictivo generado* (los crea el script 05 al iniciar).
+
 ## Reportes PDF (un reporte por requisito funcional) — QuestPDF
 - **PN1 Recepción**: botón **Reporte de facturas (PDF)** en la pantalla de Recepción (`FrmReporteFacturas`): lista facturas por período,
   exporta **una factura** o el **listado**. Al confirmar un Check-IN además se ofrece exportar la factura recién emitida.

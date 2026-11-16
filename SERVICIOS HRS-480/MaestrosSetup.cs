@@ -66,6 +66,8 @@ AND EXISTS (SELECT 1 FROM dbo.TiposEvento t JOIN dbo.Modulos m ON m.IdModulo = t
             WHERE m.Nombre = N'Maestros' AND t.Nombre = N'Versión de insumo activada')
 AND EXISTS (SELECT 1 FROM dbo.TiposEvento t JOIN dbo.Modulos m ON m.IdModulo = t.IdModulo
             WHERE m.Nombre = N'Dígito Verificador' AND t.Nombre = N'Reparación de DV cancelada')
+AND EXISTS (SELECT 1 FROM dbo.TiposEvento t JOIN dbo.Modulos m ON m.IdModulo = t.IdModulo
+            WHERE m.Nombre = N'Reportes' AND t.Nombre = N'Reporte predictivo generado')
 THEN 1 ELSE 0 END";
             using var con = ConexionDB.ObtenerConexion();
             con.Open();

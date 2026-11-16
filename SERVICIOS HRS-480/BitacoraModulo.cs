@@ -32,6 +32,12 @@ namespace SERVICIOS_HRS_480
         public const string MAESTROS_RECHAZO = "Operación rechazada en maestros";
         public const string MAESTROS_ERROR = "Error técnico en maestros";
 
+        // Módulo "Reportes" (A02 Reporte Inteligente Predictivo)
+        public const string MOD_REPORTES = "Reportes";
+        public const string REPORTE_PREDICTIVO = "Reporte predictivo generado";
+        public const string REPORTES_RECHAZO = "Acceso denegado a reportes";
+        public const string REPORTES_ERROR = "Error técnico en reportes";
+
         private static readonly object _lock = new object();
         private static readonly Bitacora _bitacora = new Bitacora();
         private static readonly Dictionary<string, (int? mod, int? ev)> _cache = new Dictionary<string, (int?, int?)>();

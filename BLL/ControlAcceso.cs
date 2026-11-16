@@ -63,6 +63,8 @@ namespace BLL_HRS_480
         /// <summary>CUN14 Bitácora de cambios de insumos (consultar y activar versiones): solo Administrador.</summary>
         public static bool PuedeAuditarCambios() => RolEn(ROL_ADMIN);
         /// <summary>Ver el menú Maestros.</summary>
+        /// <summary>A02 Reporte Inteligente Predictivo: Administrador, Recepcionista y Gerente de Compras.</summary>
+        public static bool PuedeVerReportePredictivo() => RolEn(ROL_ADMIN, ROL_RECEPCIONISTA, ROL_GERENTE);
         public static bool PuedeAccederMaestros() => PuedeGestionarClientes() || PuedeGestionarInsumos() || PuedeAuditarCambios();
 
         private static string Normalizar(string s)
