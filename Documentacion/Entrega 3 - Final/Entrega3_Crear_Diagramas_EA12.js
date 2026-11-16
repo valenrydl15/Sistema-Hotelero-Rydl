@@ -5,6 +5,7 @@
  *   T06 Bitácora de cambios: actividad del trigger TR_Insumos_RegistrarCambio y de Activar versión,
  *       DCU, DS, DC y DER de CUN14 Auditar Cambios de Insumos.
  *   A03 Serializar Clientes: DCU, DS, DC y DER de CUN13.
+ *   A02 Reporte Inteligente Predictivo: DCU, actividad, DS y DC.
  *
  * USO: seleccioná un paquete en el Project Browser, Tools > Scripting, nuevo script JScript,
  *      pegá este archivo y Run. Crea el paquete "Tercera Entrega"; no borra ni modifica nada existente.
