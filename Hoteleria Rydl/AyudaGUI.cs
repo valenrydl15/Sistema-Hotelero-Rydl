@@ -192,7 +192,7 @@ namespace GUI_HRS_480
                     "SERIALIZAR: con el botón de la carpeta elegí dónde guardar el XML y su nombre, y presioná SERIALIZAR: se guardan los clientes de la grilla.",
                     "DES-SERIALIZAR: con el botón de la carpeta elegí un XML y presioná DES-SERIALIZAR: sus clientes se cargan en la grilla (en amarillo, sin guardarse en la base).",
                     "Para guardar en la base un cliente del XML, seleccionalo y usá Añadir. LIMPIAR vacía la grilla.",
-                    "TARJETA: el número de tarjeta del cliente se guarda cifrado (AES). Solo el Supervisor lo ve completo; el resto, incluido el Administrador, ve los últimos 4 dígitos.",
+                    "Solo el Supervisor accede a los maestros. TARJETA: el número de tarjeta del cliente se guarda cifrado (AES) y el Supervisor lo ve completo; el Administrador no tiene acceso.",
                 },
                 ParaQue = "Mantener los datos de los clientes y poder exportarlos o importarlos en archivos XML."
             },

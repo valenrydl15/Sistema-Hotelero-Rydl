@@ -57,7 +57,8 @@ namespace BLL_HRS_480
 
         // ── Entrega 3: menú MAESTROS ─────────────────────────────────────────
         /// <summary>CUN13 Maestro de Clientes (ABM + serializar/des-serializar XML): Administrador y Recepcionista.</summary>
-        public static bool PuedeGestionarClientes() => RolEn(ROL_ADMIN, ROL_RECEPCIONISTA, ROL_SUPERVISOR);
+        // Maestros (Clientes e Insumos): SOLO el Supervisor. El Administrador no accede.
+        public static bool PuedeGestionarClientes() => RolEn(ROL_SUPERVISOR) && !EsAdministrador();
 
         // ── Encriptación reversible: datos sensibles de clientes (tarjeta) ─────────
         public const string ROL_SUPERVISOR = "Supervisor";
@@ -82,7 +83,7 @@ namespace BLL_HRS_480
             catch { return false; }
         }
         /// <summary>Maestro de Insumos (alta, modificación, baja lógica): Administrador, Encargado de Compras y de Depósito.</summary>
-        public static bool PuedeGestionarInsumos() => RolEn(ROL_ADMIN, ROL_COMPRAS) || EsDeposito();
+        public static bool PuedeGestionarInsumos() => RolEn(ROL_SUPERVISOR) && !EsAdministrador();
         /// <summary>CUN14 Bitácora de cambios de insumos (consultar y activar versiones): solo Administrador.</summary>
         public static bool PuedeAuditarCambios() => RolEn(ROL_ADMIN);
         /// <summary>Ver el menú Maestros.</summary>

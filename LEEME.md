@@ -61,12 +61,12 @@ Los textos de las 16 pantallas están juntos en `AyudaGUI.cs` (uno por formulari
 ## Entrega 3 — Menú MAESTROS (serialización XML y bitácora de cambios)
 Sección **MAESTROS** del menú principal. Base de datos: `Scripts/05_SQL_Entrega3_Maestros.sql` (idempotente; la app lo ejecuta sola al iniciar y después de un restore).
 
-- **CUN13 Maestro de Clientes** (`FrmMaestroClientes`, Recepcionista y Administrador). Los clientes del hotel son los **huéspedes** (tabla `Huespedes`, se le agregó `Direccion`; Celular = `Telefono`).
+- **CUN13 Maestro de Clientes** (`FrmMaestroClientes`, solo Supervisor). Los clientes del hotel son los **huéspedes** (tabla `Huespedes`, se le agregó `Direccion`; Celular = `Telefono`).
   - ABM: Actualizar (trae los clientes de la base), Añadir, Modificar, Eliminar (baja lógica) + Aplicar / Cancelar.
   - **Serializar**: botón de la carpeta → elegir ubicación y nombre del XML → SERIALIZAR guarda los clientes que se ven en la grilla.
   - **Des-serializar**: botón de la carpeta → elegir el XML → DES-SERIALIZAR los carga en la grilla (fondo amarillo; no se guardan en la base: para guardarlos, Añadir).
   - **Limpiar** vacía la grilla. No hay base para los XML: quedan en el directorio elegido. Formato: `<Clientes><Cliente><DNI/><Apellidos/><Nombres/><Email/><Celular/><Direccion/></Cliente>…</Clientes>`.
-- **Maestro de Insumos** (`FrmMaestroInsumos`, Administrador, Encargado de Compras y de Depósito): alta, modificación, baja lógica y reactivación.
+- **Maestro de Insumos** (`FrmMaestroInsumos`, solo Supervisor): alta, modificación, baja lógica y reactivación.
 - **CUN14 Bitácora de cambios** (`FrmBitacoraCambios`, Administrador). Tabla `Insumos_C` (= PRODUCTOS_C) con todos los datos del insumo + Fecha, Hora, Operación, Usuario y **Act** (1 = versión vigente, una sola por insumo).
   - Triggers: `TR_Insumos_RegistrarCambio` (AFTER INSERT, UPDATE en Insumos: pasa a Act = 0 la versión vigente e inserta la nueva con Act = 1; también registra los cambios de stock del PN2), `TR_Insumos_BorradoLogico` (INSTEAD OF DELETE: convierte el borrado en Activo = 0), `TR_Insumos_C_SinBorrado` (Insumos_C no admite DELETE) y `TR_Insumos_C_SoloAct` (solo se puede cambiar Act).
   - Filtros por Código, Nombre, Fecha inicial y final (APLICAR / LIMPIAR). **ACTIVAR** ejecuta `sp_ActivarVersionInsumo`: el insumo vuelve a esos datos y esa versión pasa a Act = 1, sin crear un registro nuevo.
@@ -112,5 +112,5 @@ Carpeta `Instalador/`. Un solo `.exe` pregunta al iniciar si se va a **Instalar*
 ## Encriptación reversible de datos sensibles (rol Supervisor)
 - Al hacer el Check-In con tarjeta, el número completo se guarda en `Huespedes.TarjetaCifrada` cifrado con **AES-256** (`SEGURIDAD HRS-480/CifradoReversible.cs`, IV aleatorio por valor, formato `AES1:` + Base64).
 - La clave de cifrado NO está en la base: se genera la primera vez en `%ProgramData%\HotelRydl\clave_datos.key`. Si se lleva la base a otra PC hay que copiar también ese archivo.
-- En el **Maestro de Clientes**, columna TARJETA: quien tenga el permiso **"Ver datos sensibles de clientes"** (rol **Supervisor**) la ve descifrada y la consulta queda en la bitácora; el resto ve `**** **** **** 1234`. El **Administrador nunca** la ve completa, aunque tenga acceso al maestro o se le asigne el permiso (`ControlAcceso.PuedeVerDatosSensibles`).
+- En el **Maestro de Clientes**, columna TARJETA: quien tenga el permiso **"Ver datos sensibles de clientes"** (rol **Supervisor**) la ve descifrada y la consulta queda en la bitácora; el resto ve `**** **** **** 1234`. El **Administrador nunca** la ve completa, aunque se le asigne el permiso (`ControlAcceso.PuedeVerDatosSensibles`). Además, los maestros (Clientes e Insumos) son **solo del Supervisor**: el Administrador no tiene acceso.
 - `Scripts/06_SQL_Entrega3_Encriptacion.sql` (se aplica solo al iniciar): columna, rol Supervisor, permiso y eventos de bitácora. Para probar: crear un usuario con rol Supervisor en Gestión de Usuarios.
