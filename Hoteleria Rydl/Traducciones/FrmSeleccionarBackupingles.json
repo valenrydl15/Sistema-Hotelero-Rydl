@@ -1,0 +1,6 @@
+{
+  "_lblDescripcion": "Select the backup to restore the database to",
+  "_blTitulo": "Database Restore",
+  "_btnCancelar": "Cancel",
+  "_btnRestore": "Restore"
+}

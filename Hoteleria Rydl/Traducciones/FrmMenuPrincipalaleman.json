@@ -18,5 +18,14 @@
   "lblSecCuenta": "KONTO",
   "lblAccesoTitulo": "Rezeption",
   "lblAccesoTexto": "Check-in und Check-out der Gäste an einem einzigen Bildschirm: Zimmer, Gast und Zahlung.",
-  "btnAccesoRecepcion": "Rezeption öffnen  →"
+  "btnAccesoRecepcion": "Rezeption öffnen  →",
+  "Hotel Rydl": "Hotel Rydl",
+  "lblSecMaestros": "STAMMDATEN",
+  "btnMaestroClientes": "Kundenstamm",
+  "btnMaestroInsumos": "Artikelstamm",
+  "btnBitacoraCambios": "Änderungsprotokoll",
+  "lblSecReportes": "BERICHTE",
+  "btnReportePredictivo": "Prognosebericht",
+  "menuAdminBackup": "Sicherung",
+  "menuAdminRestore": "Wiederherstellen"
 }

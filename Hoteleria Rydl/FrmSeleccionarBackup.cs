@@ -12,7 +12,7 @@ using ENTIDADES_HRS_480;
 
 namespace GUI_HRS_480
 {
-    public partial class FrmSeleccionarBackup : Form
+    public partial class FrmSeleccionarBackup : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
 
         private readonly List<string> _backups;
@@ -26,6 +26,16 @@ namespace GUI_HRS_480
             InitializeComponent();
             Tema.Aplicar(this);
             CargarBackups();
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma)
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmSeleccionarBackup", this);
         }
 
         private void CargarBackups()

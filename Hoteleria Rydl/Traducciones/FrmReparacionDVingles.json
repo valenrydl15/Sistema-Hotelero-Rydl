@@ -1,0 +1,12 @@
+{
+  "lblLateralDesc": "Tables where the stored and calculated check digits differ",
+  "lblLateralTitulo": "Inconsistency details",
+  "lblBackupLabel": "Backup to restore",
+  "lblOpcion2": "Restore",
+  "lblOpcion1": "Recalculate",
+  "lblSubtitulo": "A change in the system data was detected. \nChoose a repair option.",
+  "lblTitulo": "Check Digit Inconsistencies",
+  "btnSalir": "Exit",
+  "btnRestore": "Restore",
+  "btnRecalcular": "Recalculate"
+}

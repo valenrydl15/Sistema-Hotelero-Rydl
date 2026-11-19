@@ -18,7 +18,7 @@ namespace GUI_HRS_480
     ///   Encargado de Depósito: Recepción (CUN12)
     /// Todos: Órdenes (consulta y PDF) y Avisos. Solo habla con las BLL, que vuelven a validar el rol.
     /// </summary>
-    public class FrmReposicion : Form
+    public class FrmReposicion : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
         private readonly StockBLL _stock = new StockBLL();
         private readonly SolicitudCotizacionBLL _solicitudes = new SolicitudCotizacionBLL();
@@ -85,6 +85,17 @@ namespace GUI_HRS_480
                 AplicarPermisos();
                 IrA(_botones.First(b => b.Value.Visible).Key);
             };
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma).
+            // Se aplica al cargar, cuando ya están creados todos los controles.
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            Load += (s, e) => ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmReposicion", this);
         }
 
         // ═════════════════════════════════════════════════════════

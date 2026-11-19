@@ -1,0 +1,12 @@
+{
+  "lblLateralDesc": "Tablas con diferencias entre el DV almacenado y el calculado",
+  "lblLateralTitulo": "Detalle de Inconsistencias",
+  "lblBackupLabel": "Backup a Restaurar",
+  "lblOpcion2": "Restore",
+  "lblOpcion1": "Recalcular",
+  "lblSubtitulo": "Se detectó una alteración en los datos del sistema. \nSeleccioná una opción de reparación.",
+  "lblTitulo": "Inconsistencias en el Digito Verificador",
+  "btnSalir": "Salir",
+  "btnRestore": "Restore",
+  "btnRecalcular": "Recalcular"
+}

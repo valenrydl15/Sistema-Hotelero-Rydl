@@ -11,7 +11,7 @@ namespace GUI_HRS_480
     /// Reporte de facturas de Recepción (PN1): lista las facturas emitidas en un período
     /// y permite exportar una factura o el listado completo a PDF.
     /// </summary>
-    public class FrmReporteFacturas : Form
+    public class FrmReporteFacturas : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
         private readonly ReporteBLL _bll = new ReporteBLL();
         private DateTimePicker dtpDesde, dtpHasta;
@@ -26,6 +26,17 @@ namespace GUI_HRS_480
             Construir();
             AyudaGUI.Instalar(this);
             Load += (s, e) => { Buscar(); Seleccionar(nroFacturaInicial); };
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma).
+            // Se aplica al cargar, cuando ya están creados todos los controles.
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            Load += (s, e) => ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmReporteFacturas", this);
         }
 
         private void Construir()

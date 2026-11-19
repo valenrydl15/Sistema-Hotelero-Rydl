@@ -1,5 +1,4 @@
 {
-  "btnGenerarJson": "Json",
   "btnSalir": "EXIT",
   "btnIngresar": "LOGIN",
   "txtClave": "",
@@ -9,5 +8,6 @@
   "lblClave": "Password",
   "lblUsuario": "User",
   "lblSubtitulo": "Hotel Management System",
-  "lblHotel": "RYDL HOTEL"
+  "lblHotel": "RYDL HOTEL",
+  "Hotel Rydl - Iniciar sesión": "Rydl Hotel - Sign in"
 }

@@ -12,7 +12,7 @@ using SERVICIOS_HRS_480;
 
 namespace GUI_HRS_480
 {
-    public partial class FrmReparacionDV : Form
+    public partial class FrmReparacionDV : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
         private readonly ResultadoVerificacionDV _resultado;
         private readonly Usuario _admin;
@@ -24,6 +24,16 @@ namespace GUI_HRS_480
             InitializeComponent();
             Tema.Aplicar(this);
             CargarInconsistencias();
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma)
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmReparacionDV", this);
         }
 
         private void CargarInconsistencias()

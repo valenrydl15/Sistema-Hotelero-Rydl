@@ -18,5 +18,14 @@
   "lblSecCuenta": "CUENTA",
   "lblAccesoTitulo": "Recepción",
   "lblAccesoTexto": "Registrá el ingreso y la salida de huéspedes desde una única pantalla: habitación, cliente y cobro.",
-  "btnAccesoRecepcion": "Abrir Recepción  →"
+  "btnAccesoRecepcion": "Abrir Recepción  →",
+  "Hotel Rydl": "Hotel Rydl",
+  "lblSecMaestros": "MAESTROS",
+  "btnMaestroClientes": "Maestro de Clientes",
+  "btnMaestroInsumos": "Maestro de Insumos",
+  "btnBitacoraCambios": "Bitácora de Cambios",
+  "lblSecReportes": "REPORTES",
+  "btnReportePredictivo": "Reporte Predictivo",
+  "menuAdminBackup": "BackUP",
+  "menuAdminRestore": "Restore"
 }

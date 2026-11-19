@@ -15,7 +15,7 @@ namespace GUI_HRS_480
     /// Cuatro secciones: Panorama general (gráfico + lectura de resultados), Detalle por día,
     /// Por tipo de habitación e Insumos a reponer. ACTUALIZAR vuelve a calcular; VOLVER cierra.
     /// </summary>
-    public class FrmReportePredictivo : Form
+    public class FrmReportePredictivo : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
         private static readonly CultureInfo AR = new CultureInfo("es-AR");
         private readonly ReportePredictivoBLL _bll = new ReportePredictivoBLL();
@@ -32,6 +32,17 @@ namespace GUI_HRS_480
             Construir();
             AyudaGUI.Instalar(this);
             Load += (s, e) => Generar();
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma).
+            // Se aplica al cargar, cuando ya están creados todos los controles.
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            Load += (s, e) => ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmReportePredictivo", this);
         }
 
         public static Color ColorNivel(string nivel) => nivel switch

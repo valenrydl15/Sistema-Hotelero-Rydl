@@ -1,4 +1,4 @@
-﻿# Hotel Rydl — solución completa (Recepción + DSS)
+# Hotel Rydl — solución completa (Recepción + DSS)
 
 Abrir `Hoteleria Rydl Viejo.sln`, compilar (Ctrl+Shift+B) y ejecutar.
 
@@ -102,3 +102,9 @@ Carpeta `Instalador/`. Un solo `.exe` pregunta al iniciar si se va a **Instalar*
 - `HotelRydl_Instalador.iss`: script de Inno Setup (páginas, confirmaciones, búsqueda de la instalación, registro `HKLM\Software\HotelRydl\SIH`).
 - `BaseDatos.ps1`: Verificar / Instalar (backup + RESTORE del .bak inicial) / Credenciales del administrador.
 - `LEEME_Instalador.txt`: manual rápido que se instala con el programa.
+
+## Idiomas (español, inglés y alemán) en todas las pantallas
+- Las 17 pantallas tienen sus archivos `Traducciones\{Formulario}{espanol|ingles|aleman}.json` y se actualizan al elegir el idioma en *Cambiar Idioma* (patrón Observer: `GestorTraducciones` avisa a cada formulario abierto).
+- `Traductor.cs` acepta dos tipos de clave: el **nombre** del control (`btnSalir`, `dgv_Col1`) o su **texto original en español** (para las pantallas que crean sus controles por código sin nombre, y para el título de la ventana). Guarda el texto original de cada control la primera vez, así se puede volver al español.
+- Se traducen etiquetas, botones, casillas, opciones, pestañas, títulos de columnas y títulos de ventana. Los controles que muestran datos no figuran en los JSON y no se tocan. Los mensajes emergentes, la ayuda (`?`) y los valores de los combos (que usa la lógica) quedan en español.
+- Para agregar un texto nuevo: sumar la clave a los tres JSON del formulario (el botón oculto *GenerarJson* del menú agrega al JSON en español las claves que falten, sin pisar las existentes).

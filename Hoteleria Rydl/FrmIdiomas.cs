@@ -12,7 +12,7 @@ using SERVICIOS_HRS_480;
 
 namespace GUI_HRS_480
 {
-    public partial class FrmIdiomas : Form
+    public partial class FrmIdiomas : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
         public FrmIdiomas()
         {
@@ -24,6 +24,16 @@ namespace GUI_HRS_480
             cboIdioma.Items.Add("Alemán");
 
             cboIdioma.SelectedIndex = 0;
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma)
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmIdiomas", this);
         }
 
         private void btnAceptar_Click(object sender, EventArgs e)

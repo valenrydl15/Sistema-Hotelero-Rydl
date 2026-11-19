@@ -12,7 +12,7 @@ namespace GUI_HRS_480
     /// MAESTRO DE INSUMOS (menú Maestros): alta, modificación y baja lógica de insumos (PRODUCTOS del enunciado).
     /// Cada cambio queda registrado automáticamente por los TRIGGERS en la bitácora de cambios (Insumos_C, CUN14).
     /// </summary>
-    public class FrmMaestroInsumos : Form
+    public class FrmMaestroInsumos : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
         private enum Modo { Consulta, Anadir, Modificar }
 
@@ -30,6 +30,17 @@ namespace GUI_HRS_480
             Construir();
             AyudaGUI.Instalar(this);
             Load += (s, e) => Cargar();
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma).
+            // Se aplica al cargar, cuando ya están creados todos los controles.
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            Load += (s, e) => ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmMaestroInsumos", this);
         }
 
         private void Construir()

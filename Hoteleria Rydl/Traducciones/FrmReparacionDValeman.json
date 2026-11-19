@@ -1,0 +1,12 @@
+{
+  "lblLateralDesc": "Tabellen mit Abweichung zwischen gespeicherter und berechneter Prüfziffer",
+  "lblLateralTitulo": "Details der Inkonsistenzen",
+  "lblBackupLabel": "Wiederherzustellende Sicherung",
+  "lblOpcion2": "Wiederherstellen",
+  "lblOpcion1": "Neu berechnen",
+  "lblSubtitulo": "Eine Veränderung der Systemdaten wurde erkannt. \nWählen Sie eine Reparaturoption.",
+  "lblTitulo": "Inkonsistenzen der Prüfziffer",
+  "btnSalir": "Beenden",
+  "btnRestore": "Wiederherstellen",
+  "btnRecalcular": "Neu berechnen"
+}

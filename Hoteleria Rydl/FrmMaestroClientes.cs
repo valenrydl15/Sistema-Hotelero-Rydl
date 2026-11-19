@@ -19,7 +19,7 @@ namespace GUI_HRS_480
     ///  · LIMPIAR: vacía la grilla (no toca la base).
     /// Solo habla con las BLL (ClienteBLL, SerializarBLL, DesSerializarBLL), que validan el rol de nuevo.
     /// </summary>
-    public class FrmMaestroClientes : Form
+    public class FrmMaestroClientes : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
         private enum Modo { Consulta, Anadir, Modificar }
 
@@ -39,6 +39,17 @@ namespace GUI_HRS_480
             Construir();
             AyudaGUI.Instalar(this);
             Load += (s, e) => Actualizar();
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma).
+            // Se aplica al cargar, cuando ya están creados todos los controles.
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            Load += (s, e) => ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmMaestroClientes", this);
         }
 
         private void Construir()

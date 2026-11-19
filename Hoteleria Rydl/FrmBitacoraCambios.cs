@@ -16,7 +16,7 @@ namespace GUI_HRS_480
     ///  · ACTIVAR: la versión elegida pasa a ser la vigente (Act = 1) y el insumo vuelve a esos datos.
     ///  · A la derecha, la tabla Insumos actual (solo registros vigentes).
     /// </summary>
-    public class FrmBitacoraCambios : Form
+    public class FrmBitacoraCambios : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
         private readonly InsumoCBLL _cambios = new InsumoCBLL();
         private readonly InsumoBLL _insumos = new InsumoBLL();
@@ -38,6 +38,17 @@ namespace GUI_HRS_480
             Construir();
             AyudaGUI.Instalar(this);
             Load += (s, e) => { CargarCombos(); CargarInsumos(); Aplicar(); };
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma).
+            // Se aplica al cargar, cuando ya están creados todos los controles.
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            Load += (s, e) => ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmBitacoraCambios", this);
         }
 
         private void Construir()

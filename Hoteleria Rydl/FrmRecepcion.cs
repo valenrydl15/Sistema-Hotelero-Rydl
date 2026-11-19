@@ -14,7 +14,7 @@ namespace GUI_HRS_480
     /// y Check-OUT en el mismo formulario. Check-IN habla con CheckInBLL (que lanza los «include»
     /// CUN02–CUN04); Check-OUT (CUN05, caso de uso independiente) habla con CheckOutBLL.
     /// </summary>
-    public class FrmRecepcion : Form
+    public class FrmRecepcion : Form, SERVICIOS_HRS_480.Idioma.IObserver
     {
         private readonly CheckInBLL _bll = new CheckInBLL();
         private readonly CheckOutBLL _checkOut = new CheckOutBLL();   // CUN05
@@ -52,6 +52,17 @@ namespace GUI_HRS_480
             Construir();
             AyudaGUI.Instalar(this);
             Load += FrmRecepcion_Load;
+
+            // Traducción (patrón Observer: se actualiza al cambiar el idioma).
+            // Se aplica al cargar, cuando ya están creados todos los controles.
+            SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.AgregarForm(this);
+            FormClosed += (s, e) => SERVICIOS_HRS_480.Idioma.GestorTraducciones.Instancia.EliminarForm(this);
+            Load += (s, e) => ActualizarTraducciones();
+        }
+
+        public void ActualizarTraducciones()
+        {
+            new Traductor().ActualizarTraducciones("FrmRecepcion", this);
         }
 
         // ═════════════════════════════════════════════════════════
