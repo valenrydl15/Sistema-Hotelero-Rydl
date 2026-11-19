@@ -369,14 +369,14 @@ namespace GUI_HRS_480
             if (!r.Exito) { Mensaje(r.Mensaje, false); return; }
             foreach (var i in r.Dato)
             {
-                Fila(dgvFaltantes, i, i.Faltante, i.Codigo, i.Nombre, i.Categoria, N(i.StockActual), N(i.StockMinimo), i.Faltante ? N(i.CantidadSugerida) : "");
+                Fila(dgvFaltantes, i, false, i.Codigo, i.Nombre, i.Categoria, N(i.StockActual), N(i.StockMinimo), i.Faltante ? N(i.CantidadSugerida) : "");
                 var row = dgvFaltantes.Rows[dgvFaltantes.Rows.Count - 1];
                 row.Cells[4].Style.ForeColor = i.Faltante ? Tema.Peligro : Tema.Exito;
                 row.Cells[4].Style.Font = Tema.Fuente(9.5f, FontStyle.Bold);
             }
             CargarProveedores(cmbProveedor);
             int falt = r.Dato.Count(i => i.Faltante);
-            Mensaje(falt == 0 && !chkTodoElStock.Checked ? "No hay insumos faltantes: no hace falta pedir cotización." : $"{falt} insumos faltantes.", null);
+            Mensaje(falt == 0 && !chkTodoElStock.Checked ? "No hay insumos faltantes: no hace falta pedir cotización." : $"{falt} insumos faltantes. Tildá los que quieras pedir.", null);
             ResumenSolicitud();
         }
 

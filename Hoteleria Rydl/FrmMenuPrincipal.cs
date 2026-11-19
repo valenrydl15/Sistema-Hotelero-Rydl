@@ -93,6 +93,43 @@ namespace GUI_HRS_480
 
             lblFecha.Text = DateTime.Now.ToString("dddd, d 'de' MMMM 'de' yyyy",
                                 new System.Globalization.CultureInfo("es-AR"));
+
+            // Barra de desplazamiento vertical en el menú lateral: si las opciones no entran en la
+            // pantalla se puede bajar (con la barra o con la rueda del mouse).
+            // solo vertical: se deshabilita la horizontal antes de activar AutoScroll
+            pnlNav.AutoScroll = false;
+            pnlNav.HorizontalScroll.Maximum = 0;
+            pnlNav.HorizontalScroll.Enabled = false;
+            pnlNav.HorizontalScroll.Visible = false;
+            pnlNav.AutoScroll = true;
+            pnlNav.ClientSizeChanged += (s, e) => AjustarAnchoNav();
+            pnlNav.ControlAdded += (s, e) => AjustarAnchoNav();
+            pnlNav.MouseEnter += (s, e) => pnlNav.Focus();
+            foreach (Control c in pnlNav.Controls) c.MouseWheel += (s, e) => RuedaNav(e);
+            AjustarAnchoNav();
+        }
+
+        /// <summary>
+        /// Las opciones ocupan el ancho visible del menú; cuando aparece la barra vertical se angostan
+        /// para que no aparezca también una barra horizontal.
+        /// </summary>
+        private void AjustarAnchoNav()
+        {
+            int ancho = pnlNav.ClientSize.Width - pnlNav.Padding.Horizontal;
+            if (ancho <= 0) return;
+            foreach (Control c in pnlNav.Controls)
+            {
+                int w = ancho - c.Margin.Horizontal;
+                if (c.Width != w) c.Width = w;
+            }
+        }
+
+        /// <summary>La rueda del mouse sobre un botón también desplaza el menú.</summary>
+        private void RuedaNav(MouseEventArgs e)
+        {
+            if (!pnlNav.VerticalScroll.Visible) return;
+            int y = -pnlNav.AutoScrollPosition.Y - e.Delta / 3;
+            pnlNav.AutoScrollPosition = new Point(0, Math.Max(0, y));
         }
 
         private void ConfigurarSegunRol()
