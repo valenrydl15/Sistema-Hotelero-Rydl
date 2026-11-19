@@ -67,7 +67,7 @@ Sección **MAESTROS** del menú principal. Base de datos: `Scripts/05_SQL_Entreg
   - **Des-serializar**: botón de la carpeta → elegir el XML → DES-SERIALIZAR los carga en la grilla (fondo amarillo; no se guardan en la base: para guardarlos, Añadir).
   - **Limpiar** vacía la grilla. No hay base para los XML: quedan en el directorio elegido. Formato: `<Clientes><Cliente><DNI/><Apellidos/><Nombres/><Email/><Celular/><Direccion/></Cliente>…</Clientes>`.
 - **Maestro de Insumos** (`FrmMaestroInsumos`, solo Supervisor): alta, modificación, baja lógica y reactivación.
-- **CUN14 Bitácora de cambios** (`FrmBitacoraCambios`, Administrador). Tabla `Insumos_C` (= PRODUCTOS_C) con todos los datos del insumo + Fecha, Hora, Operación, Usuario y **Act** (1 = versión vigente, una sola por insumo).
+- **CUN14 Bitácora de cambios** (`FrmBitacoraCambios`, solo Supervisor). Tabla `Insumos_C` (= PRODUCTOS_C) con todos los datos del insumo + Fecha, Hora, Operación, Usuario y **Act** (1 = versión vigente, una sola por insumo).
   - Triggers: `TR_Insumos_RegistrarCambio` (AFTER INSERT, UPDATE en Insumos: pasa a Act = 0 la versión vigente e inserta la nueva con Act = 1; también registra los cambios de stock del PN2), `TR_Insumos_BorradoLogico` (INSTEAD OF DELETE: convierte el borrado en Activo = 0), `TR_Insumos_C_SinBorrado` (Insumos_C no admite DELETE) y `TR_Insumos_C_SoloAct` (solo se puede cambiar Act).
   - Filtros por Código, Nombre, Fecha inicial y final (APLICAR / LIMPIAR). **ACTIVAR** ejecuta `sp_ActivarVersionInsumo`: el insumo vuelve a esos datos y esa versión pasa a Act = 1, sin crear un registro nuevo.
   - El usuario que hizo cada cambio llega al trigger por `SESSION_CONTEXT` (requiere SQL Server 2016 o posterior).

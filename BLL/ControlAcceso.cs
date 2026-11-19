@@ -85,7 +85,8 @@ namespace BLL_HRS_480
         /// <summary>Maestro de Insumos (alta, modificación, baja lógica): Administrador, Encargado de Compras y de Depósito.</summary>
         public static bool PuedeGestionarInsumos() => RolEn(ROL_SUPERVISOR) && !EsAdministrador();
         /// <summary>CUN14 Bitácora de cambios de insumos (consultar y activar versiones): solo Administrador.</summary>
-        public static bool PuedeAuditarCambios() => RolEn(ROL_ADMIN);
+        // Bitácora de cambios (auditoría de Insumos_C): SOLO el Supervisor.
+        public static bool PuedeAuditarCambios() => RolEn(ROL_SUPERVISOR) && !EsAdministrador();
         /// <summary>Ver el menú Maestros.</summary>
         /// <summary>A02 Reporte Inteligente Predictivo: Administrador, Recepcionista y Gerente de Compras.</summary>
         public static bool PuedeVerReportePredictivo() => RolEn(ROL_ADMIN, ROL_RECEPCIONISTA, ROL_GERENTE);
