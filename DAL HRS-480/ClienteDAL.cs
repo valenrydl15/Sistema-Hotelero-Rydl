@@ -11,7 +11,7 @@ namespace DAL_HRS_480
     /// </summary>
     public class ClienteDAL
     {
-        private const string SELECT = "SELECT IdHuesped, DNI, Apellido, Nombre, Email, Telefono, Direccion, Activo FROM Huespedes";
+        private const string SELECT = "SELECT IdHuesped, DNI, Apellido, Nombre, Email, Telefono, Direccion, TarjetaCifrada, Activo FROM Huespedes";
 
         public List<ClienteBE> ObtenerClientes()
         {
@@ -101,7 +101,8 @@ namespace DAL_HRS_480
             Nombre = rd["Nombre"]?.ToString() ?? "",
             Email = rd["Email"] == DBNull.Value ? "" : rd["Email"].ToString()!,
             Celular = rd["Telefono"] == DBNull.Value ? "" : rd["Telefono"].ToString()!,
-            Direccion = rd["Direccion"] == DBNull.Value ? "" : rd["Direccion"].ToString()!
+            Direccion = rd["Direccion"] == DBNull.Value ? "" : rd["Direccion"].ToString()!,
+            TarjetaCifrada = rd["TarjetaCifrada"] == DBNull.Value ? "" : rd["TarjetaCifrada"].ToString()!
         };
     }
 }

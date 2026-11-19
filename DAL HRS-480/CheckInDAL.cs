@@ -142,6 +142,17 @@ namespace DAL_HRS_480
             Activo = (bool)rd["Activo"]
         };
 
+        /// <summary>Guarda en el huésped el número de tarjeta YA CIFRADO (AES) por la BLL.</summary>
+        public void GuardarTarjetaHuesped(int idHuesped, string tarjetaCifrada)
+        {
+            using var con = ConexionDB.ObtenerConexion();
+            con.Open();
+            using var cmd = new SqlCommand("UPDATE Huespedes SET TarjetaCifrada = @T WHERE IdHuesped = @Id", con);
+            cmd.Parameters.AddWithValue("@T", tarjetaCifrada);
+            cmd.Parameters.AddWithValue("@Id", idHuesped);
+            cmd.ExecuteNonQuery();
+        }
+
         // ══════════════════════════════════════════════════════
         // RESERVAS
         // ══════════════════════════════════════════════════════

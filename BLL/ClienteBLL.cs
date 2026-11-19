@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using DAL_HRS_480;
 using ENTIDADES_HRS_480;
+using SEGURIDAD_HRS_480;
 using SERVICIOS_HRS_480;
 
 namespace BLL_HRS_480
@@ -19,8 +20,45 @@ namespace BLL_HRS_480
         public ResultadoOperacion<List<ClienteBE>> ObtenerClientes()
         {
             if (!ControlAcceso.PuedeGestionarClientes()) return MaestrosComun.Denegado<List<ClienteBE>>("ver clientes");
-            try { return ResultadoOperacion<List<ClienteBE>>.Ok(_dal.ObtenerClientes()); }
+            try
+            {
+                var lista = _dal.ObtenerClientes();
+                PrepararTarjetas(lista);
+                return ResultadoOperacion<List<ClienteBE>>.Ok(lista);
+            }
             catch (Exception ex) { return MaestrosComun.Error<List<ClienteBE>>("Ver clientes", ex); }
+        }
+
+        /// <summary>
+        /// Encriptación reversible: la tarjeta está cifrada con AES en la base. Si el usuario tiene el permiso
+        /// de datos sensibles (Supervisor) se muestra descifrada y la consulta queda en la bitácora; al resto
+        /// (incluido el Administrador) solo se le muestran los últimos 4 dígitos.
+        /// </summary>
+        private static void PrepararTarjetas(List<ClienteBE> lista)
+        {
+            bool verCompleta = ControlAcceso.PuedeVerDatosSensibles();
+            int conTarjeta = 0, errores = 0;
+            foreach (var c in lista)
+            {
+                if (string.IsNullOrEmpty(c.TarjetaCifrada)) { c.Tarjeta = ""; continue; }
+                conTarjeta++;
+                try
+                {
+                    string plano = CifradoReversible.Desencriptar(c.TarjetaCifrada);
+                    c.Tarjeta = verCompleta ? CifradoReversible.FormatearTarjeta(plano) : CifradoReversible.EnmascararTarjeta(plano);
+                }
+                catch
+                {
+                    c.Tarjeta = "(no se puede descifrar)";
+                    errores++;
+                }
+            }
+            if (verCompleta && conTarjeta > 0)
+                BitacoraModulo.Registrar(BitacoraModulo.MOD_MAESTROS, BitacoraModulo.CLIENTE_DATOS_SENSIBLES, 2,
+                    $"Se mostraron descifradas las tarjetas de {conTarjeta - errores} cliente/s en el Maestro de Clientes.", "EXITOSO");
+            if (errores > 0)
+                BitacoraModulo.Registrar(BitacoraModulo.MOD_MAESTROS, BitacoraModulo.CLIENTE_ERROR_DESCIFRAR, 1,
+                    $"No se pudieron descifrar {errores} tarjeta/s: falta o cambió la clave de cifrado (clave_datos.key).", "FALLIDO");
         }
 
         public ResultadoOperacion<ClienteBE> Alta(ClienteBE c)

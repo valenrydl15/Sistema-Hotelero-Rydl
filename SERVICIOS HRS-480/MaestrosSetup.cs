@@ -15,17 +15,43 @@ namespace SERVICIOS_HRS_480
     public static class MaestrosSetup
     {
         private const string RECURSO = "Entrega3_Maestros.sql";
+        private const string RECURSO_CIFRADO = "Entrega3_Encriptacion.sql";   // Scripts\06: tarjeta cifrada + rol Supervisor
 
         /// <summary>Devuelve null si todo quedó bien, o el detalle del error.</summary>
         public static string? Asegurar()
         {
+            string? error = null;
+            try { if (!YaEstaListo()) error = Ejecutar(RECURSO); }
+            catch (Exception ex) { error = ex.Message; }
+            try { if (!CifradoListo()) error = Unir(error, Ejecutar(RECURSO_CIFRADO)); }
+            catch (Exception ex) { error = Unir(error, ex.Message); }
+            return error;
+        }
+
+        private static string? Unir(string? a, string? b) => a == null ? b : b == null ? a : a + Environment.NewLine + b;
+
+        private static bool CifradoListo()
+        {
+            const string sql = @"
+SELECT CASE WHEN
+    COL_LENGTH(N'dbo.Huespedes', N'TarjetaCifrada') IS NOT NULL
+AND EXISTS (SELECT 1 FROM dbo.RolPermisos rp JOIN dbo.Roles r ON r.IdRol = rp.IdRol JOIN dbo.Permisos p ON p.IdPermiso = rp.IdPermiso
+            WHERE r.Nombre = N'Supervisor' AND p.Nombre = N'Ver datos sensibles de clientes')
+AND EXISTS (SELECT 1 FROM dbo.TiposEvento WHERE Nombre = N'Datos sensibles de clientes consultados')
+THEN 1 ELSE 0 END";
+            using var con = ConexionDB.ObtenerConexion();
+            con.Open();
+            using var cmd = new SqlCommand(sql, con);
+            return Convert.ToInt32(cmd.ExecuteScalar()) == 1;
+        }
+
+        private static string? Ejecutar(string recurso)
+        {
             try
             {
-                if (YaEstaListo()) return null;
-
                 string script;
-                using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream(RECURSO)
-                       ?? throw new InvalidOperationException("Falta el script embebido " + RECURSO + "."))
+                using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream(recurso)
+                       ?? throw new InvalidOperationException("Falta el script embebido " + recurso + "."))
                 using (var r = new StreamReader(s, System.Text.Encoding.UTF8))
                     script = r.ReadToEnd();
 

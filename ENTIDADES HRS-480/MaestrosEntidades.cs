@@ -28,6 +28,12 @@ namespace ENTIDADES_HRS_480
         /// <summary>true si la fila de la grilla vino de un XML y no de la base.</summary>
         [XmlIgnore] public bool DesdeXml { get; set; }
 
+        /// <summary>Número de tarjeta cifrado con AES (columna Huespedes.TarjetaCifrada). No viaja en el XML.</summary>
+        [XmlIgnore] public string TarjetaCifrada { get; set; } = "";
+
+        /// <summary>Lo que se muestra en la grilla: la tarjeta completa (Supervisor) o enmascarada (resto). No viaja en el XML.</summary>
+        [XmlIgnore] public string Tarjeta { get; set; } = "";
+
         public override string ToString() => $"{Apellido}, {Nombre} (DNI {DNI})";
     }
 

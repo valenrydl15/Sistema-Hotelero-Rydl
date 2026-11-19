@@ -30,6 +30,8 @@ namespace SERVICIOS_HRS_480
         public const string CAMBIOS_CONSULTA = "Consulta de bitácora de cambios";
         public const string VERSION_ACTIVADA = "Versión de insumo activada";
         public const string MAESTROS_RECHAZO = "Operación rechazada en maestros";
+        public const string CLIENTE_DATOS_SENSIBLES = "Datos sensibles de clientes consultados";
+        public const string CLIENTE_ERROR_DESCIFRAR = "Error al descifrar dato sensible";
         public const string MAESTROS_ERROR = "Error técnico en maestros";
 
         // Módulo "Reportes" (A02 Reporte Inteligente Predictivo)

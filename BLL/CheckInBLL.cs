@@ -188,6 +188,15 @@ namespace BLL_HRS_480
                 }
                 res.NroFactura = cobro.NroFactura;
 
+                // 5b. Dato sensible: el número de tarjeta se guarda en el huésped CIFRADO con AES (encriptación
+                //     reversible). Solo el Supervisor lo puede ver descifrado en el Maestro de Clientes.
+                string digitos = new string((s.NumeroTarjeta ?? "").Where(char.IsDigit).ToArray());
+                if (digitos.Length >= 13)
+                {
+                    _dal.GuardarTarjetaHuesped(idHuesped, CifradoReversible.Encriptar(digitos));
+                    tocadas.Add("Huespedes");
+                }
+
                 // 6. Registrar el check-in y cambiar estados
                 _dal.InsertarCheckIn(idReserva, DateTime.Now, IdUsuarioActual, s.Observaciones);
                 _dal.ActualizarEstadoReserva(idReserva, "CheckIn");

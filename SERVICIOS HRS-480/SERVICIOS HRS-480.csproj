@@ -10,6 +10,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\Scripts\02_SQL_PN2_Reposicion.sql" LogicalName="PN2_Reposicion.sql" />
     <EmbeddedResource Include="..\Scripts\05_SQL_Entrega3_Maestros.sql" LogicalName="Entrega3_Maestros.sql" />
+    <EmbeddedResource Include="..\Scripts\06_SQL_Entrega3_Encriptacion.sql" LogicalName="Entrega3_Encriptacion.sql" />
   </ItemGroup>
 
   <ItemGroup>

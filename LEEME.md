@@ -108,3 +108,9 @@ Carpeta `Instalador/`. Un solo `.exe` pregunta al iniciar si se va a **Instalar*
 - `Traductor.cs` acepta dos tipos de clave: el **nombre** del control (`btnSalir`, `dgv_Col1`) o su **texto original en español** (para las pantallas que crean sus controles por código sin nombre, y para el título de la ventana). Guarda el texto original de cada control la primera vez, así se puede volver al español.
 - Se traducen etiquetas, botones, casillas, opciones, pestañas, títulos de columnas y títulos de ventana. Los controles que muestran datos no figuran en los JSON y no se tocan. Los mensajes emergentes, la ayuda (`?`) y los valores de los combos (que usa la lógica) quedan en español.
 - Para agregar un texto nuevo: sumar la clave a los tres JSON del formulario (el botón oculto *GenerarJson* del menú agrega al JSON en español las claves que falten, sin pisar las existentes).
+
+## Encriptación reversible de datos sensibles (rol Supervisor)
+- Al hacer el Check-In con tarjeta, el número completo se guarda en `Huespedes.TarjetaCifrada` cifrado con **AES-256** (`SEGURIDAD HRS-480/CifradoReversible.cs`, IV aleatorio por valor, formato `AES1:` + Base64).
+- La clave de cifrado NO está en la base: se genera la primera vez en `%ProgramData%\HotelRydl\clave_datos.key`. Si se lleva la base a otra PC hay que copiar también ese archivo.
+- En el **Maestro de Clientes**, columna TARJETA: quien tenga el permiso **"Ver datos sensibles de clientes"** (rol **Supervisor**) la ve descifrada y la consulta queda en la bitácora; el resto ve `**** **** **** 1234`. El **Administrador nunca** la ve completa, aunque tenga acceso al maestro o se le asigne el permiso (`ControlAcceso.PuedeVerDatosSensibles`).
+- `Scripts/06_SQL_Entrega3_Encriptacion.sql` (se aplica solo al iniciar): columna, rol Supervisor, permiso y eventos de bitácora. Para probar: crear un usuario con rol Supervisor en Gestión de Usuarios.

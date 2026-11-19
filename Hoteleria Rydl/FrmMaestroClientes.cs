@@ -67,7 +67,7 @@ namespace GUI_HRS_480
 
             // Grilla (matriz de datos)
             dgvClientes = UiMaestros.Grilla(this, 20, 82, 870, 250,
-                ("DNI", 12), ("APELLIDOS", 16), ("NOMBRES", 16), ("EMAIL", 22), ("CELULAR", 14), ("DIRECCIÓN", 24));
+                ("DNI", 11), ("APELLIDOS", 15), ("NOMBRES", 15), ("EMAIL", 20), ("CELULAR", 12), ("DIRECCIÓN", 20), ("TARJETA", 18));
             dgvClientes.SelectionChanged += (s, e) => { if (_modo == Modo.Consulta) CargarCampos(Seleccionado()); };
             lblOrigen = UiMaestros.Etiqueta(this, "", 20, 336, 870);
 
@@ -135,14 +135,14 @@ namespace GUI_HRS_480
 
         private void AgregarFila(ClienteBE c)
         {
-            int i = dgvClientes.Rows.Add(c.DNI, c.Apellido, c.Nombre, c.Email, c.Celular, c.Direccion);
+            int i = dgvClientes.Rows.Add(c.DNI, c.Apellido, c.Nombre, c.Email, c.Celular, c.Direccion, c.Tarjeta);
             PintarFila(dgvClientes.Rows[i], c);
         }
 
         private static void PintarFila(DataGridViewRow r, ClienteBE c)
         {
             r.Tag = c;
-            r.SetValues(c.DNI, c.Apellido, c.Nombre, c.Email, c.Celular, c.Direccion);
+            r.SetValues(c.DNI, c.Apellido, c.Nombre, c.Email, c.Celular, c.Direccion, c.Tarjeta);
             r.DefaultCellStyle.BackColor = c.DesdeXml ? Color.FromArgb(255, 248, 225) : Color.Empty;
         }
 
@@ -230,6 +230,12 @@ namespace GUI_HRS_480
             if (!r.Exito) { UiMaestros.Mostrar(lblMensaje, r.Mensaje, false); return; }
 
             var fila = FilaPorDNI(r.Dato.DNI);
+            if (fila?.Tag is ClienteBE anterior && string.IsNullOrEmpty(r.Dato.Tarjeta))
+            {
+                // la tarjeta no se edita en el maestro: se conserva lo que ya mostraba la grilla
+                r.Dato.Tarjeta = anterior.Tarjeta;
+                r.Dato.TarjetaCifrada = anterior.TarjetaCifrada;
+            }
             if (fila != null) PintarFila(fila, r.Dato); else AgregarFila(r.Dato);
             CambiarModo(Modo.Consulta);
             fila = FilaPorDNI(r.Dato.DNI);

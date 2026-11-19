@@ -24,5 +24,6 @@
   "Salir": "Exit",
   "SERIALIZAR": "SERIALIZE",
   "DES-SERIALIZAR": "DESERIALIZE",
-  "LIMPIAR": "CLEAR"
+  "LIMPIAR": "CLEAR",
+  "TARJETA": "CARD"
 }
