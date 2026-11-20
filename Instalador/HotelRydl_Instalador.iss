@@ -48,7 +48,7 @@ UninstallDisplayName={#MiApp}
 UninstallDisplayIcon={app}\{#MiExe}
 CloseApplications=yes
 RestartApplications=no
-; Al iniciar pregunta el idioma: el del instalador y el que usa el programa al abrirse (idioma.txt)
+; Al iniciar pregunta el idioma del instalador (el programa siempre abre en español; se cambia desde Cambiar idioma)
 ShowLanguageDialog=yes
 LanguageDetectionMethod=none
 
@@ -58,9 +58,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "german";  MessagesFile: "compiler:Languages\German.isl"
 
 [Messages]
-spanish.WelcomeLabel2=Este asistente instala o reinstala [name/ver] en el equipo.%n%nEn el próximo paso vas a elegir:%n%n•  INSTALAR: programa + base de datos (instalación completa).%n•  REINSTALAR: solo el programa, conservando la base de datos.%n%nAntes de continuar cerrá Hotel Rydl si está abierto. Necesitás SQL Server (2016 o superior) instalado en este equipo.%n%nEl programa se va a abrir en español.
-english.WelcomeLabel2=This wizard installs or reinstalls [name/ver] on this computer.%n%nIn the next step you will choose:%n%n•  INSTALL: program + database (full installation).%n•  REINSTALL: program only, keeping the database.%n%nClose Hotel Rydl before continuing if it is open. SQL Server (2016 or later) must be installed on this computer.%n%nThe program will open in English.
-german.WelcomeLabel2=Dieser Assistent installiert [name/ver] auf diesem Computer oder installiert es neu.%n%nIm nächsten Schritt wählen Sie:%n%n•  INSTALLIEREN: Programm + Datenbank (vollständige Installation).%n•  NEU INSTALLIEREN: nur das Programm, die Datenbank bleibt erhalten.%n%nSchließen Sie Hotel Rydl, falls es geöffnet ist. SQL Server (2016 oder neuer) muss auf diesem Computer installiert sein.%n%nDas Programm wird auf Deutsch geöffnet.
+spanish.WelcomeLabel2=Este asistente instala o reinstala [name/ver] en el equipo.%n%nEn el próximo paso vas a elegir:%n%n•  INSTALAR: programa + base de datos (instalación completa).%n•  REINSTALAR: solo el programa, conservando la base de datos.%n%nAntes de continuar cerrá Hotel Rydl si está abierto. Necesitás SQL Server (2016 o superior) instalado en este equipo.
+english.WelcomeLabel2=This wizard installs or reinstalls [name/ver] on this computer.%n%nIn the next step you will choose:%n%n•  INSTALL: program + database (full installation).%n•  REINSTALL: program only, keeping the database.%n%nClose Hotel Rydl before continuing if it is open. SQL Server (2016 or later) must be installed on this computer.
+german.WelcomeLabel2=Dieser Assistent installiert [name/ver] auf diesem Computer oder installiert es neu.%n%nIm nächsten Schritt wählen Sie:%n%n•  INSTALLIEREN: Programm + Datenbank (vollständige Installation).%n•  NEU INSTALLIEREN: nur das Programm, die Datenbank bleibt erhalten.%n%nSchließen Sie Hotel Rydl, falls es geöffnet ist. SQL Server (2016 oder neuer) muss auf diesem Computer installiert sein.
 english.ExitSetupMessage=The installation is not finished. If you exit now, Hotel Rydl will not be installed.%n%nAre you sure you want to exit?
 german.ExitSetupMessage=Die Installation ist nicht abgeschlossen. Wenn Sie jetzt beenden, wird Hotel Rydl nicht installiert.%n%nMöchten Sie wirklich beenden?
 spanish.ExitSetupMessage=La instalación no terminó. Si salís ahora, Hotel Rydl no queda instalado.%n%n¿Estás seguro de que querés salir?
@@ -261,9 +261,6 @@ Source: "..\Scripts\*.sql"; DestDir: "{app}\Scripts"; Flags: ignoreversion
 ; Herramienta de base de datos y manual
 Source: "BaseDatos.ps1"; DestDir: "{app}\Instalador"; Flags: ignoreversion
 Source: "LEEME_Instalador.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
-
-[UninstallDelete]
-Type: files; Name: "{app}\idioma.txt"
 
 [Dirs]
 Name: "{app}\Backups"; Flags: uninsneveruninstall
@@ -662,17 +659,7 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
-var
-  IdiomaPrograma: String;
 begin
-  if CurStep = ssPostInstall then
-  begin
-    { idioma con el que abre el programa: el elegido al iniciar el instalador }
-    if ActiveLanguage = 'english' then IdiomaPrograma := 'ingles'
-    else if ActiveLanguage = 'german' then IdiomaPrograma := 'aleman'
-    else IdiomaPrograma := 'espanol';
-    SaveStringToFile(ExpandConstant('{app}\idioma.txt'), IdiomaPrograma, False);
-  end;
   if (CurStep = ssPostInstall) and EsInstalar then
     InstalarBase;
 end;

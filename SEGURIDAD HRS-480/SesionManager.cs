@@ -11,26 +11,7 @@ namespace SEGURIDAD_HRS_480
         private static SesionManager _instancia;
         private static readonly object _lock = new object();
 
-        private SesionManager() { Idioma = IdiomaInicial(); }
-
-        /// <summary>
-        /// Idioma con el que abre el programa: lo deja el instalador en idioma.txt (carpeta del programa),
-        /// según el idioma elegido al instalar. Si no existe o no es válido, español.
-        /// </summary>
-        private static string IdiomaInicial()
-        {
-            try
-            {
-                string ruta = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "idioma.txt");
-                if (System.IO.File.Exists(ruta))
-                {
-                    string i = System.IO.File.ReadAllText(ruta).Trim().ToLowerInvariant();
-                    if (i == "espanol" || i == "ingles" || i == "aleman") return i;
-                }
-            }
-            catch { }
-            return "espanol";
-        }
+        private SesionManager() { Idioma = "espanol"; }
 
         public static SesionManager Instancia
         {
