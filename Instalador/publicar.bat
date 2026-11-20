@@ -10,7 +10,14 @@ cd /d "%~dp0.."
 echo.
 echo [1/2] Publicando el programa...
 if exist "Instalador\publicar" rmdir /s /q "Instalador\publicar"
-dotnet publish "Hoteleria Rydl\GUI HRS-480.csproj" -c Release -r win-x64 --self-contained true -o "Instalador\publicar"
+set PROY=
+for /f "delims=" %%f in ('dir /s /b "GUI HRS-480.csproj" 2^>nul ^| findstr /v /i "\\obj\\ \\bin\\"') do if not defined PROY set "PROY=%%f"
+if not defined PROY (
+  echo No se encontro "GUI HRS-480.csproj" debajo de %CD%
+  pause & exit /b 1
+)
+echo Proyecto: %PROY%
+dotnet publish "%PROY%" -c Release -r win-x64 --self-contained true -o "Instalador\publicar"
 if errorlevel 1 (
   echo ERROR al publicar. Revisa que compile en Visual Studio.
   pause & exit /b 1
