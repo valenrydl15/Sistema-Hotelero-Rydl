@@ -349,7 +349,7 @@ begin
       else if Codigo = BD_NO_EXISTE then
       begin
         if not Confirmar('No se encontró la base de datos HotelRydlDB en ' + Servidor + '.' + #13#10#13#10 +
-                         'La reinstalación no crea la base: el programa la va a crear vacía (con los datos iniciales) la primera vez que se abra.' + #13#10 +
+                         'La reinstalación no crea la base: sin ella el programa no va a poder iniciar.' + #13#10 +
                          'Si querés instalar todo, volvé y elegí INSTALAR.' + #13#10#13#10 +
                          '¿Estás seguro de que querés continuar con la reinstalación?') then
         begin
