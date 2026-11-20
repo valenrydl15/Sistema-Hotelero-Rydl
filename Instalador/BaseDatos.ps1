@@ -3,14 +3,16 @@
   Lo ejecuta el instalador de Inno Setup (HotelRydl_Instalador.iss); también se puede correr a mano:
 
     powershell -ExecutionPolicy Bypass -File BaseDatos.ps1 -Accion Verificar   -Salida res.txt
-    powershell -ExecutionPolicy Bypass -File BaseDatos.ps1 -Accion Instalar    -Bak "C:\...\HotelRydl.bak" -Respaldo -Salida res.txt
+    powershell -ExecutionPolicy Bypass -File BaseDatos.ps1 -Accion Instalar    -Bak "C:\...\HotelRydl.bak" -Inicial BaseInicial.sql -Respaldo -Salida res.txt
     powershell -ExecutionPolicy Bypass -File BaseDatos.ps1 -Accion Credenciales -Salida res.txt
 
   Acciones
     Verificar     Busca SQL Server en el equipo y si existe la base HotelRydlDB.
                   Código de salida: 0 = SQL Server OK y la base NO existe · 1 = la base YA existe
                                     2 = no se encontró SQL Server      · 3 = error
-    Instalar      (Opcional) respalda la base actual y la reemplaza por el backup inicial (.bak).
+    Instalar      (Opcional) respalda la base actual y crea la base nueva: restaura la estructura (.bak)
+                  y con -Inicial la deja en estado de fábrica (BaseInicial.sql: sin datos cargados,
+                  con roles, permisos y el usuario administrador). La copia del .bak se borra al terminar.
                   Código de salida: 0 = OK · 2 = sin SQL Server · 3 = error
     Credenciales  Lee el usuario administrador (IdUsuario = 1) para mostrarlo al terminar.
 
@@ -21,6 +23,7 @@ param(
     [ValidateSet('Verificar', 'Instalar', 'Credenciales')]
     [string]$Accion = 'Verificar',
     [string]$Bak = '',
+    [string]$Inicial = '',
     [switch]$Respaldo,
     [string]$CarpetaApp = '',
     [string]$Salida = '',
@@ -189,6 +192,35 @@ try {
             Escribir-Log 'Restaurando la base inicial...'
             Ejecutar $servidor ("RESTORE DATABASE [$NombreBD] FROM DISK = N'$($bakSql.Replace("'", "''"))' WITH " + ($movs -join ', ') + ', REPLACE, RECOVERY')
             Ejecutar $servidor "ALTER DATABASE [$NombreBD] SET MULTI_USER"
+
+            # 5) Estado de fábrica: se vacían los datos cargados (queda solo lo indispensable + admin)
+            if ($Inicial) {
+                try {
+                    if (-not (Test-Path $Inicial)) { throw "No se encontró el script de base inicial: $Inicial" }
+                    Escribir-Log 'Dejando la base en estado inicial (sin datos cargados)...'
+                    $sqlIni = [IO.File]::ReadAllText($Inicial, [Text.Encoding]::UTF8)
+                    $con = New-Object System.Data.SqlClient.SqlConnection (Cadena $servidor $NombreBD)
+                    $con.Open()
+                    try {
+                        $cmd = $con.CreateCommand(); $cmd.CommandText = $sqlIni; $cmd.CommandTimeout = 600
+                        [void]$cmd.ExecuteNonQuery()
+                    } finally { $con.Close() }
+                    $resultado['inicial'] = '1'
+                    Escribir-Log 'Base inicial lista: configuración del sistema + usuario administrador.'
+                } catch {
+                    # No se deja una base con datos ajenos: se elimina y se informa el error
+                    $msg = $_.Exception.Message
+                    Escribir-Log "No se pudo dejar la base en estado inicial: $msg"
+                    try {
+                        [System.Data.SqlClient.SqlConnection]::ClearAllPools()
+                        Ejecutar $servidor "ALTER DATABASE [$NombreBD] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [$NombreBD]"
+                    } catch { }
+                    throw "No se pudo preparar la base inicial: $msg"
+                }
+            }
+
+            # 6) La copia del .bak en la carpeta de SQL Server ya no hace falta
+            if ($bakSql -ne $Bak) { Remove-Item $bakSql -Force -ErrorAction SilentlyContinue }
             $resultado['instalada'] = '1'
             Escribir-Log "Base $NombreBD instalada en $servidor."
             Guardar-Salida; exit 0

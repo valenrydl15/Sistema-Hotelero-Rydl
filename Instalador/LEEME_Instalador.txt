@@ -14,7 +14,14 @@ AL ABRIR EL INSTALADOR (Instalador_HotelRydl_v3.0.exe) se elige qué hacer:
 1) INSTALAR  (programa + base de datos)
    - Usala la primera vez, o cuando quieras empezar de cero.
    - Pide la carpeta donde instalar (por defecto C:\Program Files\Hotel Rydl).
-   - Crea la base HotelRydlDB desde el backup inicial.
+   - Crea la base HotelRydlDB en estado inicial ("de fábrica"), sin datos cargados:
+     solo lo indispensable para que el sistema funcione (roles, permisos, familias,
+     módulos y eventos de bitácora, habitaciones, catálogo de insumos y proveedores).
+   - Crea el usuario ADMINISTRADOR para el primer ingreso:
+         Usuario: admin
+         Contraseña inicial: 12345678Admin   (DNI + Apellido)
+     En el primer ingreso el sistema pide cambiar la contraseña. Después, desde
+     Gestión de usuarios, el administrador crea al resto (Supervisor, Recepcionista, etc.).
    - Si la base YA EXISTE, la REEMPLAZA: antes ofrece hacer un backup y pide
      varias confirmaciones, porque se pierden los datos cargados.
    - Al terminar muestra el usuario administrador para el primer ingreso.
@@ -39,7 +46,7 @@ PROBLEMAS FRECUENTES
 - "No se encontró SQL Server": instalá SQL Server Express y volvé a ejecutar el instalador.
   Si ya está instalado, verificá que el servicio "SQL Server (SQLEXPRESS)" esté iniciado.
 - "No se pudo instalar la base de datos": mirá el detalle en Logs\instalacion_bd.log.
-  El programa igual intenta crear la base la primera vez que se abre.
+  Revisá que SQL Server esté iniciado y volvé a ejecutar el instalador en modo INSTALAR.
 - La herramienta de base de datos queda en la subcarpeta Instalador (BaseDatos.ps1)
   para ejecutarla a mano si hace falta:
   powershell -ExecutionPolicy Bypass -File BaseDatos.ps1 -Accion Verificar

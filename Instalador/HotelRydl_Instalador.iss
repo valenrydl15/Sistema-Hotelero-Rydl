@@ -3,7 +3,9 @@
 ;  Instalador y REINSTALADOR (Inno Setup 6)
 ;
 ;  Al iniciar pregunta qué se quiere hacer:
-;    • INSTALAR   → instala TODO: programa + base de datos HotelRydlDB.
+;    • INSTALAR   → instala TODO: programa + base de datos HotelRydlDB en estado
+;                   de fábrica (sin datos cargados; con roles, permisos, configuración
+;                   y el usuario administrador del primer ingreso).
 ;                   Pide la carpeta de instalación. Si la base ya existe,
 ;                   ofrece respaldarla y pide doble confirmación antes de reemplazarla.
 ;    • REINSTALAR → reinstala SOLO el programa en la carpeta donde ya está instalado
@@ -67,8 +69,10 @@ Type: filesandordirs; Name: "{app}\runtimes";         Check: EsReinstalar
 [Files]
 ; Programa publicado (self-contained, no requiere instalar .NET)
 Source: "publicar\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "conexion.txt,correo.txt,*.pdb,Backups\*"
-; Backup inicial de la base (el programa también lo usa si la base no existe)
-Source: "..\Backups\{#MiBak}"; DestDir: "{app}\Backups"; Flags: ignoreversion
+; Base inicial: el .bak aporta SOLO la estructura (tablas, triggers, procedimientos y catálogos con los Id
+; que espera el código). BaseInicial.sql la deja de fábrica. Ninguno de los dos queda en la carpeta del programa.
+Source: "..\Backups\{#MiBak}"; DestDir: "{tmp}"; Flags: dontcopy
+Source: "BaseInicial.sql"; DestDir: "{tmp}"; Flags: dontcopy
 ; Scripts SQL (el programa los aplica solo al iniciar; quedan para ejecutarlos a mano si hace falta)
 Source: "..\Scripts\*.sql"; DestDir: "{app}\Scripts"; Flags: ignoreversion
 ; Herramienta de base de datos y manual
@@ -251,7 +255,7 @@ begin
   PaginaBD := CreateInputOptionPage(wpSelectDir,
     'La base de datos ya existe',
     'Se encontró la base HotelRydlDB en este equipo.',
-    'La instalación completa REEMPLAZA la base de datos por la base inicial del sistema: ' +
+    'La instalación completa REEMPLAZA la base de datos por la base inicial del sistema (sin datos cargados): ' +
     'se pierden las reservas, huéspedes, insumos, usuarios y demás datos cargados.' + #13#10#13#10 +
     'Si solo querés actualizar el programa, volvé atrás y elegí REINSTALAR.',
     False, False);
@@ -433,7 +437,8 @@ begin
         Result := Result + Space + 'SIN backup previo' + NewLine;
     end
     else
-      Result := Result + Space + 'Se crea HotelRydlDB desde el backup inicial' + NewLine;
+      Result := Result + Space + 'Se crea HotelRydlDB en estado inicial (sin datos cargados)' + NewLine;
+    Result := Result + Space + 'Se crea el usuario administrador para el primer ingreso' + NewLine;
     Result := Result + NewLine;
     if MemoGroupInfo <> '' then Result := Result + MemoGroupInfo + NewLine + NewLine;
   end;
@@ -449,7 +454,10 @@ var
 begin
   Log := ExpandConstant('{app}\Logs\instalacion_bd.log');
   Salida := ExpandConstant('{tmp}\instalar.txt');
-  Extra := '-CarpetaApp "' + ExpandConstant('{app}') + '" -Bak "' + ExpandConstant('{app}\Backups\{#MiBak}') + '"';
+  ExtractTemporaryFile('{#MiBak}');
+  ExtractTemporaryFile('BaseInicial.sql');
+  Extra := '-CarpetaApp "' + ExpandConstant('{app}') + '" -Bak "' + ExpandConstant('{tmp}\{#MiBak}') + '"' +
+           ' -Inicial "' + ExpandConstant('{tmp}\BaseInicial.sql') + '"';
   if BaseExiste and PaginaBD.Values[0] then Extra := Extra + ' -Respaldo';
 
   WizardForm.StatusLabel.Caption := 'Instalando la base de datos HotelRydlDB (puede tardar unos minutos)...';
@@ -496,10 +504,10 @@ begin
   else
   begin
     ResultadoBD := 'ATENCIÓN: no se pudo instalar la base de datos (' + LeerValor(Salida, 'error') + ').' + #13#10 +
-                   'El programa la va a crear al abrirse desde el backup inicial. Detalle en ' + Log;
+                   'Volvé a ejecutar el instalador en modo INSTALAR. Detalle en ' + Log;
     MsgBox('No se pudo instalar la base de datos HotelRydlDB.' + #13#10#13#10 +
            LeerValor(Salida, 'error') + #13#10#13#10 +
-           'El programa quedó instalado: al abrirlo por primera vez intentará crear la base desde el backup inicial.' + #13#10 +
+           'El programa quedó instalado, pero sin base de datos. Revisá que SQL Server esté iniciado y volvé a ejecutar el instalador en modo INSTALAR.' + #13#10 +
            'Detalle en: ' + Log, mbError, MB_OK);
   end;
 end;
