@@ -75,6 +75,169 @@ german.GrupoAccesos=Verknüpfungen:
 spanish.AbrirAhora=Abrir Hotel Rydl ahora
 english.AbrirAhora=Open Hotel Rydl now
 german.AbrirAhora=Hotel Rydl jetzt öffnen
+; ── textos de las pantallas propias del instalador ([Code]); %n = salto de línea, %1/%2 = datos ──
+spanish.ModoReinst=Reinstalación
+spanish.ModoInst=Instalación completa
+spanish.PagModoTit=¿Qué querés hacer?
+spanish.PagModoSub=Elegí si vas a instalar el sistema completo o reinstalar solo el programa.
+spanish.PagModoTxt=INSTALAR copia el programa y crea la base de datos HotelRydlDB (si ya existe, se reemplaza). REINSTALAR vuelve a copiar el programa en la carpeta donde ya está instalado y CONSERVA la base de datos.
+spanish.OpcInst=Instalar  (programa + base de datos)
+spanish.OpcReinst=Reinstalar  (solo el programa, conserva la base de datos)
+spanish.EncontradoEn=Se encontró Hotel Rydl instalado en: %1
+spanish.PagReinstTit=Reinstalación
+spanish.PagReinstSub=Se va a reinstalar el programa en la carpeta donde ya está instalado.
+spanish.PagBDTit=La base de datos ya existe
+spanish.PagBDSub=Se encontró la base HotelRydlDB en este equipo.
+spanish.PagBDTxt=La instalación completa REEMPLAZA la base de datos por la base inicial del sistema (sin datos cargados): se pierden las reservas, huéspedes, insumos, usuarios y demás datos cargados.%n%nSi solo querés actualizar el programa, volvé atrás y elegí REINSTALAR.
+spanish.OpcBackup=Hacer un backup de la base actual antes de reemplazarla (recomendado)
+spanish.ReinstDetalle=Carpeta de instalación encontrada:%n    %1%n%nQué se hace:%n    •  Se reemplazan los archivos del programa por esta versión ({#MiVersion}).%n    •  Se actualizan los scripts SQL y los accesos directos.%n%nQué NO se toca:%n    •  La base de datos HotelRydlDB (todos tus datos se conservan).%n    •  Tus backups y los archivos conexion.txt y correo.txt.%n%nBase de datos: %2 / HotelRydlDB
+spanish.FinReinst=Hotel Rydl se reinstaló correctamente en:%n%1%n%nLa base de datos HotelRydlDB se conservó sin cambios. Ingresá con tu usuario y contraseña de siempre.
+spanish.FinInst=Hotel Rydl se instaló en:%n%1
+spanish.NoEncontrado=No se encontró Hotel Rydl instalado en este equipo.%n%n¿Querés indicar a mano la carpeta donde está instalado?
+spanish.UsarInstalar=Para instalar el sistema por primera vez elegí la opción INSTALAR.
+spanish.ElegirCarpeta=Elegí la carpeta donde está instalado Hotel Rydl (la que contiene {#MiExe}):
+spanish.CarpetaMal=En esa carpeta no está el programa ({#MiExe}).%nElegí la carpeta correcta o usá la opción INSTALAR.
+spanish.ReinstSinSQL=No se pudo conectar con SQL Server.%n%nEl programa se puede reinstalar igual, pero no va a funcionar hasta que SQL Server esté disponible.%n%n¿Estás seguro de que querés continuar?
+spanish.ReinstSinBD=No se encontró la base de datos HotelRydlDB en %1.%n%nLa reinstalación no crea la base: sin ella el programa no va a poder iniciar.%nSi querés instalar todo, volvé y elegí INSTALAR.%n%n¿Estás seguro de que querés continuar con la reinstalación?
+spanish.ConfReinst=¿Estás seguro de que querés REINSTALAR Hotel Rydl en esta carpeta?%n%n    %1%n%nSe reemplazan los archivos del programa. La base de datos se conserva.
+spanish.YaInstalado=Hotel Rydl ya está instalado en:%n    %1%n%nINSTALAR hace una instalación COMPLETA: también instala la base de datos y, si ya existe, la REEMPLAZA.%nSi solo querés actualizar el programa, elegí REINSTALAR.%n%n¿Estás seguro de que querés hacer una instalación completa?
+spanish.SinSQL=No se encontró SQL Server en este equipo, o tu usuario de Windows no tiene permiso para conectarse.%n%nInstalá SQL Server 2016 o superior (por ejemplo SQL Server Express) y volvé a ejecutar el instalador.%nDetalle en: %1
+spanish.ConfCarpeta=¿Estás seguro de que querés instalar Hotel Rydl en esta carpeta?%n%n    %1
+spanish.ConfBorrar=ATENCIÓN: se van a BORRAR todos los datos actuales de HotelRydlDB%n(reservas, huéspedes, pagos, insumos, órdenes, usuarios y bitácora)%ny se reemplazan por la base inicial del sistema.%n%n¿Estás seguro?
+spanish.ConfSinBackup=Elegiste NO hacer un backup antes de reemplazar la base.%nSi continuás, los datos actuales no se van a poder recuperar.%n%n¿Estás seguro de continuar sin backup?
+spanish.ConfUltima=Última confirmación: ¿reemplazar la base de datos HotelRydlDB?%nEsta acción no se puede deshacer.
+spanish.ComenzarReinst=Se va a reinstalar el programa en %1.%n%n¿Comenzar?
+spanish.ComenzarInst=Se va a instalar el programa en %1 y la base de datos HotelRydlDB.%n%n¿Comenzar?
+spanish.MemoOperacion=Operación:
+spanish.MemoBD=Base de datos:
+spanish.MemoConserva=Se conserva sin cambios (%1)
+spanish.MemoServidor=Servidor: %1
+spanish.MemoExiste=HotelRydlDB YA EXISTE: se reemplaza por la base inicial
+spanish.MemoBackup=Antes se hace un backup de la base actual
+spanish.MemoSinBackup=SIN backup previo
+spanish.MemoCrea=Se crea HotelRydlDB en estado inicial (sin datos cargados)
+spanish.MemoAdmin=Se crea el usuario administrador para el primer ingreso
+spanish.EstadoBD=Instalando la base de datos HotelRydlDB (puede tardar unos minutos)...
+spanish.BDInstalada=Base de datos HotelRydlDB instalada en %1.
+spanish.BDRespaldo=Backup de la base anterior: %1
+spanish.PrimerIngreso=Primer ingreso (anotalo antes de cerrar):%n    Usuario: %1
+spanish.ClaveInicialFin=    Contraseña inicial: %1  (DNI + Apellido)%nEl sistema te va a pedir que la cambies en el primer ingreso.
+spanish.CartelClave=Datos para el primer ingreso a Hotel Rydl:%n%nUsuario: %1%nContraseña inicial: %2   (DNI + Apellido)%n%nAnotalos antes de cerrar este mensaje. En el primer ingreso el sistema te va a pedir cambiar la contraseña.
+spanish.ClaveExistenteFin=    Contraseña: la del administrador que ya tenía la base inicial.
+spanish.CartelClaveExistente=Datos para el primer ingreso a Hotel Rydl:%n%nUsuario: %1%nContraseña: la del administrador guardada en la base inicial.%n%nAnotá el usuario antes de cerrar este mensaje.
+spanish.BDErrorFin=ATENCIÓN: no se pudo instalar la base de datos (%1).%nVolvé a ejecutar el instalador en modo INSTALAR. Detalle en %2
+spanish.BDErrorCartel=No se pudo instalar la base de datos HotelRydlDB.%n%n%1%n%nEl programa quedó instalado, pero sin base de datos. Revisá que SQL Server esté iniciado y volvé a ejecutar el instalador en modo INSTALAR.%nDetalle en: %2
+spanish.ConfDesinstalar=¿Estás seguro de que querés desinstalar Hotel Rydl?%n%nSe borra el programa. La base de datos HotelRydlDB y la carpeta Backups NO se borran.
+spanish.IconoManual=Manual de instalación
+spanish.IconoDesinstalar=Desinstalar Hotel Rydl
+english.ModoReinst=Reinstallation
+english.ModoInst=Full installation
+english.PagModoTit=What do you want to do?
+english.PagModoSub=Choose whether to install the complete system or reinstall only the program.
+english.PagModoTxt=INSTALL copies the program and creates the HotelRydlDB database (if it already exists, it is replaced). REINSTALL copies the program again into the folder where it is already installed and KEEPS the database.
+english.OpcInst=Install  (program + database)
+english.OpcReinst=Reinstall  (program only, keeps the database)
+english.EncontradoEn=Hotel Rydl was found installed in: %1
+english.PagReinstTit=Reinstallation
+english.PagReinstSub=The program will be reinstalled in the folder where it is already installed.
+english.PagBDTit=The database already exists
+english.PagBDSub=The HotelRydlDB database was found on this computer.
+english.PagBDTxt=The full installation REPLACES the database with the initial system database (no data loaded): bookings, guests, supplies, users and all other loaded data are lost.%n%nIf you only want to update the program, go back and choose REINSTALL.
+english.OpcBackup=Back up the current database before replacing it (recommended)
+english.ReinstDetalle=Installation folder found:%n    %1%n%nWhat is done:%n    •  The program files are replaced by this version ({#MiVersion}).%n    •  The SQL scripts and shortcuts are updated.%n%nWhat is NOT touched:%n    •  The HotelRydlDB database (all your data is kept).%n    •  Your backups and the conexion.txt and correo.txt files.%n%nDatabase: %2 / HotelRydlDB
+english.FinReinst=Hotel Rydl was successfully reinstalled in:%n%1%n%nThe HotelRydlDB database was kept unchanged. Log in with your usual user and password.
+english.FinInst=Hotel Rydl was installed in:%n%1
+english.NoEncontrado=Hotel Rydl was not found on this computer.%n%nDo you want to select the installation folder manually?
+english.UsarInstalar=To install the system for the first time, choose INSTALL.
+english.ElegirCarpeta=Choose the folder where Hotel Rydl is installed (the one containing {#MiExe}):
+english.CarpetaMal=The program ({#MiExe}) is not in that folder.%nChoose the correct folder or use INSTALL.
+english.ReinstSinSQL=Could not connect to SQL Server.%n%nThe program can still be reinstalled, but it will not work until SQL Server is available.%n%nAre you sure you want to continue?
+english.ReinstSinBD=The HotelRydlDB database was not found on %1.%n%nThe reinstallation does not create the database: without it the program cannot start.%nIf you want to install everything, go back and choose INSTALL.%n%nAre you sure you want to continue with the reinstallation?
+english.ConfReinst=Are you sure you want to REINSTALL Hotel Rydl in this folder?%n%n    %1%n%nThe program files are replaced. The database is kept.
+english.YaInstalado=Hotel Rydl is already installed in:%n    %1%n%nINSTALL performs a FULL installation: it also installs the database and, if it already exists, REPLACES it.%nIf you only want to update the program, choose REINSTALL.%n%nAre you sure you want to perform a full installation?
+english.SinSQL=SQL Server was not found on this computer, or your Windows user does not have permission to connect.%n%nInstall SQL Server 2016 or later (for example SQL Server Express) and run the installer again.%nDetails in: %1
+english.ConfCarpeta=Are you sure you want to install Hotel Rydl in this folder?%n%n    %1
+english.ConfBorrar=WARNING: ALL current data in HotelRydlDB will be DELETED%n(bookings, guests, payments, supplies, orders, users and log)%nand replaced by the initial system database.%n%nAre you sure?
+english.ConfSinBackup=You chose NOT to back up before replacing the database.%nIf you continue, the current data cannot be recovered.%n%nAre you sure you want to continue without a backup?
+english.ConfUltima=Final confirmation: replace the HotelRydlDB database?%nThis action cannot be undone.
+english.ComenzarReinst=The program will be reinstalled in %1.%n%nStart?
+english.ComenzarInst=The program will be installed in %1 together with the HotelRydlDB database.%n%nStart?
+english.MemoOperacion=Operation:
+english.MemoBD=Database:
+english.MemoConserva=Kept unchanged (%1)
+english.MemoServidor=Server: %1
+english.MemoExiste=HotelRydlDB ALREADY EXISTS: it is replaced by the initial database
+english.MemoBackup=A backup of the current database is made first
+english.MemoSinBackup=WITHOUT a previous backup
+english.MemoCrea=HotelRydlDB is created in its initial state (no data loaded)
+english.MemoAdmin=The administrator user for the first login is created
+english.EstadoBD=Installing the HotelRydlDB database (this may take a few minutes)...
+english.BDInstalada=HotelRydlDB database installed on %1.
+english.BDRespaldo=Backup of the previous database: %1
+english.PrimerIngreso=First login (write it down before closing):%n    User: %1
+english.ClaveInicialFin=    Initial password: %1  (ID + Surname)%nThe system will ask you to change it at the first login.
+english.CartelClave=Details for the first login to Hotel Rydl:%n%nUser: %1%nInitial password: %2   (ID + Surname)%n%nWrite them down before closing this message. At the first login the system will ask you to change the password.
+english.ClaveExistenteFin=    Password: the one of the administrator already stored in the initial database.
+english.CartelClaveExistente=Details for the first login to Hotel Rydl:%n%nUser: %1%nPassword: the administrator password stored in the initial database.%n%nWrite down the user before closing this message.
+english.BDErrorFin=WARNING: the database could not be installed (%1).%nRun the installer again in INSTALL mode. Details in %2
+english.BDErrorCartel=The HotelRydlDB database could not be installed.%n%n%1%n%nThe program was installed, but without a database. Check that SQL Server is running and run the installer again in INSTALL mode.%nDetails in: %2
+english.ConfDesinstalar=Are you sure you want to uninstall Hotel Rydl?%n%nThe program is removed. The HotelRydlDB database and the Backups folder are NOT deleted.
+english.IconoManual=Installation manual
+english.IconoDesinstalar=Uninstall Hotel Rydl
+german.ModoReinst=Neuinstallation
+german.ModoInst=Vollständige Installation
+german.PagModoTit=Was möchten Sie tun?
+german.PagModoSub=Wählen Sie, ob Sie das komplette System installieren oder nur das Programm neu installieren möchten.
+german.PagModoTxt=INSTALLIEREN kopiert das Programm und erstellt die Datenbank HotelRydlDB (falls sie existiert, wird sie ersetzt). NEU INSTALLIEREN kopiert das Programm erneut in den Ordner, in dem es bereits installiert ist, und BEHÄLT die Datenbank.
+german.OpcInst=Installieren  (Programm + Datenbank)
+german.OpcReinst=Neu installieren  (nur das Programm, Datenbank bleibt erhalten)
+german.EncontradoEn=Hotel Rydl wurde gefunden in: %1
+german.PagReinstTit=Neuinstallation
+german.PagReinstSub=Das Programm wird in dem Ordner neu installiert, in dem es bereits installiert ist.
+german.PagBDTit=Die Datenbank existiert bereits
+german.PagBDSub=Die Datenbank HotelRydlDB wurde auf diesem Computer gefunden.
+german.PagBDTxt=Die vollständige Installation ERSETZT die Datenbank durch die Anfangsdatenbank des Systems (ohne Daten): Buchungen, Gäste, Artikel, Benutzer und alle anderen Daten gehen verloren.%n%nWenn Sie nur das Programm aktualisieren möchten, gehen Sie zurück und wählen Sie NEU INSTALLIEREN.
+german.OpcBackup=Vor dem Ersetzen eine Sicherung der aktuellen Datenbank erstellen (empfohlen)
+german.ReinstDetalle=Gefundener Installationsordner:%n    %1%n%nWas gemacht wird:%n    •  Die Programmdateien werden durch diese Version ersetzt ({#MiVersion}).%n    •  Die SQL-Skripte und Verknüpfungen werden aktualisiert.%n%nWas NICHT verändert wird:%n    •  Die Datenbank HotelRydlDB (alle Ihre Daten bleiben erhalten).%n    •  Ihre Sicherungen und die Dateien conexion.txt und correo.txt.%n%nDatenbank: %2 / HotelRydlDB
+german.FinReinst=Hotel Rydl wurde erfolgreich neu installiert in:%n%1%n%nDie Datenbank HotelRydlDB blieb unverändert. Melden Sie sich mit Ihrem gewohnten Benutzer und Passwort an.
+german.FinInst=Hotel Rydl wurde installiert in:%n%1
+german.NoEncontrado=Hotel Rydl wurde auf diesem Computer nicht gefunden.%n%nMöchten Sie den Installationsordner manuell auswählen?
+german.UsarInstalar=Um das System zum ersten Mal zu installieren, wählen Sie INSTALLIEREN.
+german.ElegirCarpeta=Wählen Sie den Ordner, in dem Hotel Rydl installiert ist (der {#MiExe} enthält):
+german.CarpetaMal=Das Programm ({#MiExe}) befindet sich nicht in diesem Ordner.%nWählen Sie den richtigen Ordner oder verwenden Sie INSTALLIEREN.
+german.ReinstSinSQL=Keine Verbindung zu SQL Server möglich.%n%nDas Programm kann trotzdem neu installiert werden, funktioniert aber erst, wenn SQL Server verfügbar ist.%n%nMöchten Sie wirklich fortfahren?
+german.ReinstSinBD=Die Datenbank HotelRydlDB wurde auf %1 nicht gefunden.%n%nDie Neuinstallation erstellt keine Datenbank: ohne sie kann das Programm nicht starten.%nWenn Sie alles installieren möchten, gehen Sie zurück und wählen Sie INSTALLIEREN.%n%nMöchten Sie die Neuinstallation wirklich fortsetzen?
+german.ConfReinst=Möchten Sie Hotel Rydl wirklich in diesem Ordner NEU INSTALLIEREN?%n%n    %1%n%nDie Programmdateien werden ersetzt. Die Datenbank bleibt erhalten.
+german.YaInstalado=Hotel Rydl ist bereits installiert in:%n    %1%n%nINSTALLIEREN führt eine VOLLSTÄNDIGE Installation durch: es installiert auch die Datenbank und ERSETZT sie, falls sie existiert.%nWenn Sie nur das Programm aktualisieren möchten, wählen Sie NEU INSTALLIEREN.%n%nMöchten Sie wirklich eine vollständige Installation durchführen?
+german.SinSQL=SQL Server wurde auf diesem Computer nicht gefunden, oder Ihr Windows-Benutzer hat keine Berechtigung zur Verbindung.%n%nInstallieren Sie SQL Server 2016 oder neuer (z. B. SQL Server Express) und führen Sie das Installationsprogramm erneut aus.%nDetails in: %1
+german.ConfCarpeta=Möchten Sie Hotel Rydl wirklich in diesem Ordner installieren?%n%n    %1
+german.ConfBorrar=ACHTUNG: ALLE aktuellen Daten in HotelRydlDB werden GELÖSCHT%n(Buchungen, Gäste, Zahlungen, Artikel, Bestellungen, Benutzer und Protokoll)%nund durch die Anfangsdatenbank des Systems ersetzt.%n%nSind Sie sicher?
+german.ConfSinBackup=Sie haben gewählt, KEINE Sicherung vor dem Ersetzen der Datenbank zu erstellen.%nWenn Sie fortfahren, können die aktuellen Daten nicht wiederhergestellt werden.%n%nMöchten Sie wirklich ohne Sicherung fortfahren?
+german.ConfUltima=Letzte Bestätigung: die Datenbank HotelRydlDB ersetzen?%nDiese Aktion kann nicht rückgängig gemacht werden.
+german.ComenzarReinst=Das Programm wird in %1 neu installiert.%n%nBeginnen?
+german.ComenzarInst=Das Programm wird in %1 zusammen mit der Datenbank HotelRydlDB installiert.%n%nBeginnen?
+german.MemoOperacion=Vorgang:
+german.MemoBD=Datenbank:
+german.MemoConserva=Bleibt unverändert (%1)
+german.MemoServidor=Server: %1
+german.MemoExiste=HotelRydlDB EXISTIERT BEREITS: sie wird durch die Anfangsdatenbank ersetzt
+german.MemoBackup=Zuerst wird eine Sicherung der aktuellen Datenbank erstellt
+german.MemoSinBackup=OHNE vorherige Sicherung
+german.MemoCrea=HotelRydlDB wird im Anfangszustand erstellt (ohne Daten)
+german.MemoAdmin=Der Administrator-Benutzer für die erste Anmeldung wird erstellt
+german.EstadoBD=Die Datenbank HotelRydlDB wird installiert (dies kann einige Minuten dauern)...
+german.BDInstalada=Datenbank HotelRydlDB installiert auf %1.
+german.BDRespaldo=Sicherung der vorherigen Datenbank: %1
+german.PrimerIngreso=Erste Anmeldung (notieren Sie es vor dem Schließen):%n    Benutzer: %1
+german.ClaveInicialFin=    Anfangspasswort: %1  (Ausweis + Nachname)%nDas System fordert Sie bei der ersten Anmeldung auf, es zu ändern.
+german.CartelClave=Daten für die erste Anmeldung bei Hotel Rydl:%n%nBenutzer: %1%nAnfangspasswort: %2   (Ausweis + Nachname)%n%nNotieren Sie sie, bevor Sie diese Meldung schließen. Bei der ersten Anmeldung fordert das System Sie auf, das Passwort zu ändern.
+german.ClaveExistenteFin=    Passwort: das des Administrators, das bereits in der Anfangsdatenbank gespeichert ist.
+german.CartelClaveExistente=Daten für die erste Anmeldung bei Hotel Rydl:%n%nBenutzer: %1%nPasswort: das in der Anfangsdatenbank gespeicherte Administratorpasswort.%n%nNotieren Sie den Benutzer, bevor Sie diese Meldung schließen.
+german.BDErrorFin=ACHTUNG: die Datenbank konnte nicht installiert werden (%1).%nFühren Sie das Installationsprogramm erneut im Modus INSTALLIEREN aus. Details in %2
+german.BDErrorCartel=Die Datenbank HotelRydlDB konnte nicht installiert werden.%n%n%1%n%nDas Programm wurde installiert, aber ohne Datenbank. Prüfen Sie, ob SQL Server läuft, und führen Sie das Installationsprogramm erneut im Modus INSTALLIEREN aus.%nDetails in: %2
+german.ConfDesinstalar=Möchten Sie Hotel Rydl wirklich deinstallieren?%n%nDas Programm wird entfernt. Die Datenbank HotelRydlDB und der Ordner Backups werden NICHT gelöscht.
+german.IconoManual=Installationshandbuch
+german.IconoDesinstalar=Hotel Rydl deinstallieren
 
 [Tasks]
 Name: "escritorio"; Description: "{cm:TareaEscritorio}"; GroupDescription: "{cm:GrupoAccesos}"
@@ -108,8 +271,8 @@ Name: "{app}\Logs"
 
 [Icons]
 Name: "{group}\Hotel Rydl"; Filename: "{app}\{#MiExe}"; WorkingDir: "{app}"
-Name: "{group}\Manual de instalación"; Filename: "{app}\LEEME_Instalador.txt"
-Name: "{group}\Desinstalar Hotel Rydl"; Filename: "{uninstallexe}"
+Name: "{group}\{cm:IconoManual}"; Filename: "{app}\LEEME_Instalador.txt"
+Name: "{group}\{cm:IconoDesinstalar}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Hotel Rydl"; Filename: "{app}\{#MiExe}"; WorkingDir: "{app}"; Tasks: escritorio
 
 [Registry]
@@ -145,6 +308,26 @@ var
 
 { ───────────────────────── utilidades ───────────────────────── }
 
+{ Texto en el idioma elegido al iniciar el instalador ([CustomMessages]) }
+function M(const Clave: String): String;
+begin
+  Result := CustomMessage(Clave);
+  StringChangeEx(Result, '%n', #13#10, True);
+end;
+
+{ Igual que M, reemplazando %1 y %2 por los datos }
+function M1(const Clave, A: String): String;
+begin
+  Result := M(Clave);
+  StringChangeEx(Result, '%1', A, True);
+end;
+
+function M2(const Clave, A, B: String): String;
+begin
+  Result := M1(Clave, A);
+  StringChangeEx(Result, '%2', B, True);
+end;
+
 function EsReinstalar: Boolean;
 begin
   if PaginaModo = nil then
@@ -160,7 +343,7 @@ end;
 
 function NombreModo(Param: String): String;
 begin
-  if EsReinstalar then Result := 'Reinstalación' else Result := 'Instalación completa';
+  if EsReinstalar then Result := M('ModoReinst') else Result := M('ModoInst');
 end;
 
 function Confirmar(const Texto: String): Boolean;
@@ -254,35 +437,24 @@ begin
   HayInstalacion := BuscarInstalacion(CarpetaPrevia);
 
   PaginaModo := CreateInputOptionPage(wpWelcome,
-    '¿Qué querés hacer?',
-    'Elegí si vas a instalar el sistema completo o reinstalar solo el programa.',
-    'INSTALAR copia el programa y crea la base de datos HotelRydlDB (si ya existe, se reemplaza). ' +
-    'REINSTALAR vuelve a copiar el programa en la carpeta donde ya está instalado y CONSERVA la base de datos.',
-    True, False);
-  PaginaModo.Add('Instalar  (programa + base de datos)');
-  PaginaModo.Add('Reinstalar  (solo el programa, conserva la base de datos)');
+    M('PagModoTit'), M('PagModoSub'), M('PagModoTxt'), True, False);
+  PaginaModo.Add(M('OpcInst'));
+  PaginaModo.Add(M('OpcReinst'));
   if HayInstalacion then
   begin
     PaginaModo.Values[1] := True;     // si ya está instalado, lo más probable es reinstalar
     PaginaModo.SubCaptionLabel.Caption := PaginaModo.SubCaptionLabel.Caption + #13#10#13#10 +
-      'Se encontró Hotel Rydl instalado en: ' + CarpetaPrevia;
+      M1('EncontradoEn', CarpetaPrevia);
   end
   else
     PaginaModo.Values[0] := True;
 
   PaginaReinst := CreateOutputMsgPage(PaginaModo.ID,
-    'Reinstalación',
-    'Se va a reinstalar el programa en la carpeta donde ya está instalado.',
-    '');
+    M('PagReinstTit'), M('PagReinstSub'), '');
 
   PaginaBD := CreateInputOptionPage(wpSelectDir,
-    'La base de datos ya existe',
-    'Se encontró la base HotelRydlDB en este equipo.',
-    'La instalación completa REEMPLAZA la base de datos por la base inicial del sistema (sin datos cargados): ' +
-    'se pierden las reservas, huéspedes, insumos, usuarios y demás datos cargados.' + #13#10#13#10 +
-    'Si solo querés actualizar el programa, volvé atrás y elegí REINSTALAR.',
-    False, False);
-  PaginaBD.Add('Hacer un backup de la base actual antes de reemplazarla (recomendado)');
+    M('PagBDTit'), M('PagBDSub'), M('PagBDTxt'), False, False);
+  PaginaBD.Add(M('OpcBackup'));
   PaginaBD.Values[0] := True;
 end;
 
@@ -298,25 +470,14 @@ end;
 procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = PaginaReinst.ID then
-    PaginaReinst.MsgLabel.Caption :=
-      'Carpeta de instalación encontrada:' + #13#10 + '    ' + WizardForm.DirEdit.Text + #13#10#13#10 +
-      'Qué se hace:' + #13#10 +
-      '    •  Se reemplazan los archivos del programa por esta versión ({#MiVersion}).' + #13#10 +
-      '    •  Se actualizan los scripts SQL y los accesos directos.' + #13#10#13#10 +
-      'Qué NO se toca:' + #13#10 +
-      '    •  La base de datos HotelRydlDB (todos tus datos se conservan).' + #13#10 +
-      '    •  Tus backups y los archivos conexion.txt y correo.txt.' + #13#10#13#10 +
-      'Base de datos: ' + Servidor + ' / HotelRydlDB';
+    PaginaReinst.MsgLabel.Caption := M2('ReinstDetalle', WizardForm.DirEdit.Text, Servidor);
 
   if CurPageID = wpFinished then
   begin
     if EsReinstalar then
-      WizardForm.FinishedLabel.Caption :=
-        'Hotel Rydl se reinstaló correctamente en:' + #13#10 + WizardForm.DirEdit.Text + #13#10#13#10 +
-        'La base de datos HotelRydlDB se conservó sin cambios. Ingresá con tu usuario y contraseña de siempre.'
+      WizardForm.FinishedLabel.Caption := M1('FinReinst', WizardForm.DirEdit.Text)
     else
-      WizardForm.FinishedLabel.Caption :=
-        'Hotel Rydl se instaló en:' + #13#10 + WizardForm.DirEdit.Text + #13#10#13#10 + ResultadoBD;
+      WizardForm.FinishedLabel.Caption := M1('FinInst', WizardForm.DirEdit.Text) + #13#10#13#10 + ResultadoBD;
     // el texto es más largo que el original: se acomodan el rótulo y la lista de opciones
     WizardForm.AdjustLabelHeight(WizardForm.FinishedLabel);
     WizardForm.RunList.Top := WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(12);
@@ -337,21 +498,19 @@ begin
     begin
       if not HayInstalacion then
       begin
-        if MsgBox('No se encontró Hotel Rydl instalado en este equipo.' + #13#10#13#10 +
-                  '¿Querés indicar a mano la carpeta donde está instalado?',
-                  mbConfirmation, MB_YESNO) = IDNO then
+        if MsgBox(M('NoEncontrado'), mbConfirmation, MB_YESNO) = IDNO then
         begin
-          MsgBox('Para instalar el sistema por primera vez elegí la opción INSTALAR.', mbInformation, MB_OK);
+          MsgBox(M('UsarInstalar'), mbInformation, MB_OK);
           Result := False; Exit;
         end;
         Dir := ExpandConstant('{autopf}');
-        if not BrowseForFolder('Elegí la carpeta donde está instalado Hotel Rydl (la que contiene {#MiExe}):', Dir, False) then
+        if not BrowseForFolder(M('ElegirCarpeta'), Dir, False) then
         begin
           Result := False; Exit;
         end;
         if not ExeEn(Dir) then
         begin
-          MsgBox('En esa carpeta no está el programa ({#MiExe}).' + #13#10 + 'Elegí la carpeta correcta o usá la opción INSTALAR.', mbError, MB_OK);
+          MsgBox(M('CarpetaMal'), mbError, MB_OK);
           Result := False; Exit;
         end;
         CarpetaPrevia := Dir;
@@ -362,35 +521,25 @@ begin
       Codigo := VerificarSQL;
       if Codigo = SIN_SQL then
       begin
-        if not Confirmar('No se pudo conectar con SQL Server.' + #13#10#13#10 +
-                         'El programa se puede reinstalar igual, pero no va a funcionar hasta que SQL Server esté disponible.' + #13#10#13#10 +
-                         '¿Estás seguro de que querés continuar?') then
+        if not Confirmar(M('ReinstSinSQL')) then
         begin
           Result := False; Exit;
         end;
       end
       else if Codigo = BD_NO_EXISTE then
       begin
-        if not Confirmar('No se encontró la base de datos HotelRydlDB en ' + Servidor + '.' + #13#10#13#10 +
-                         'La reinstalación no crea la base: sin ella el programa no va a poder iniciar.' + #13#10 +
-                         'Si querés instalar todo, volvé y elegí INSTALAR.' + #13#10#13#10 +
-                         '¿Estás seguro de que querés continuar con la reinstalación?') then
+        if not Confirmar(M1('ReinstSinBD', Servidor)) then
         begin
           Result := False; Exit;
         end;
       end;
 
-      Result := Confirmar('¿Estás seguro de que querés REINSTALAR Hotel Rydl en esta carpeta?' + #13#10#13#10 +
-                          '    ' + CarpetaPrevia + #13#10#13#10 +
-                          'Se reemplazan los archivos del programa. La base de datos se conserva.');
+      Result := Confirmar(M1('ConfReinst', CarpetaPrevia));
     end
     else
     begin
       if HayInstalacion then
-        if not Confirmar('Hotel Rydl ya está instalado en:' + #13#10 + '    ' + CarpetaPrevia + #13#10#13#10 +
-                         'INSTALAR hace una instalación COMPLETA: también instala la base de datos y, si ya existe, la REEMPLAZA.' + #13#10 +
-                         'Si solo querés actualizar el programa, elegí REINSTALAR.' + #13#10#13#10 +
-                         '¿Estás seguro de que querés hacer una instalación completa?') then
+        if not Confirmar(M1('YaInstalado', CarpetaPrevia)) then
         begin
           Result := False; Exit;
         end;
@@ -398,10 +547,7 @@ begin
       Codigo := VerificarSQL;
       if (Codigo = SIN_SQL) or (Codigo = ERROR_BD) then
       begin
-        MsgBox('No se encontró SQL Server en este equipo, o tu usuario de Windows no tiene permiso para conectarse.' + #13#10#13#10 +
-               'Instalá SQL Server 2016 o superior (por ejemplo SQL Server Express) y volvé a ejecutar el instalador.' + #13#10 +
-               'Detalle en: ' + ExpandConstant('{tmp}\basedatos.log'),
-               mbCriticalError, MB_OK);
+        MsgBox(M1('SinSQL', ExpandConstant('{tmp}\basedatos.log')), mbCriticalError, MB_OK);
         Result := False; Exit;
       end;
     end;
@@ -409,59 +555,52 @@ begin
 
   { ── paso 2 (instalar): carpeta elegida ── }
   if (CurPageID = wpSelectDir) and EsInstalar then
-    Result := Confirmar('¿Estás seguro de que querés instalar Hotel Rydl en esta carpeta?' + #13#10#13#10 +
-                        '    ' + WizardForm.DirEdit.Text);
+    Result := Confirmar(M1('ConfCarpeta', WizardForm.DirEdit.Text));
 
   { ── paso 3 (instalar con base existente): doble confirmación ── }
   if CurPageID = PaginaBD.ID then
   begin
-    if not Confirmar('ATENCIÓN: se van a BORRAR todos los datos actuales de HotelRydlDB' + #13#10 +
-                     '(reservas, huéspedes, pagos, insumos, órdenes, usuarios y bitácora)' + #13#10 +
-                     'y se reemplazan por la base inicial del sistema.' + #13#10#13#10 +
-                     '¿Estás seguro?') then
+    if not Confirmar(M('ConfBorrar')) then
     begin
       Result := False; Exit;
     end;
     if not PaginaBD.Values[0] then
-      if not Confirmar('Elegiste NO hacer un backup antes de reemplazar la base.' + #13#10 +
-                       'Si continuás, los datos actuales no se van a poder recuperar.' + #13#10#13#10 +
-                       '¿Estás seguro de continuar sin backup?') then
+      if not Confirmar(M('ConfSinBackup')) then
       begin
         Result := False; Exit;
       end;
-    Result := Confirmar('Última confirmación: ¿reemplazar la base de datos HotelRydlDB?' + #13#10 +
-                        'Esta acción no se puede deshacer.');
+    Result := Confirmar(M('ConfUltima'));
   end;
 
   { ── listo para instalar ── }
   if CurPageID = wpReady then
     if EsReinstalar then
-      Result := Confirmar('Se va a reinstalar el programa en ' + WizardForm.DirEdit.Text + '.' + #13#10#13#10 + '¿Comenzar?')
+      Result := Confirmar(M1('ComenzarReinst', WizardForm.DirEdit.Text))
     else
-      Result := Confirmar('Se va a instalar el programa en ' + WizardForm.DirEdit.Text + ' y la base de datos HotelRydlDB.' + #13#10#13#10 + '¿Comenzar?');
+      Result := Confirmar(M1('ComenzarInst', WizardForm.DirEdit.Text));
 end;
 
 function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo,
   MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;
 begin
-  Result := 'Operación:' + NewLine + Space + NombreModo('') + NewLine + NewLine +
+  Result := M('MemoOperacion') + NewLine + Space + NombreModo('') + NewLine + NewLine +
             MemoDirInfo + NewLine + NewLine;
   if EsReinstalar then
-    Result := Result + 'Base de datos:' + NewLine + Space + 'Se conserva sin cambios (' + Servidor + ')' + NewLine + NewLine
+    Result := Result + M('MemoBD') + NewLine + Space + M1('MemoConserva', Servidor) + NewLine + NewLine
   else
   begin
-    Result := Result + 'Base de datos:' + NewLine + Space + 'Servidor: ' + Servidor + NewLine;
+    Result := Result + M('MemoBD') + NewLine + Space + M1('MemoServidor', Servidor) + NewLine;
     if BaseExiste then
     begin
-      Result := Result + Space + 'HotelRydlDB YA EXISTE: se reemplaza por la base inicial' + NewLine;
+      Result := Result + Space + M('MemoExiste') + NewLine;
       if PaginaBD.Values[0] then
-        Result := Result + Space + 'Antes se hace un backup de la base actual' + NewLine
+        Result := Result + Space + M('MemoBackup') + NewLine
       else
-        Result := Result + Space + 'SIN backup previo' + NewLine;
+        Result := Result + Space + M('MemoSinBackup') + NewLine;
     end
     else
-      Result := Result + Space + 'Se crea HotelRydlDB en estado inicial (sin datos cargados)' + NewLine;
-    Result := Result + Space + 'Se crea el usuario administrador para el primer ingreso' + NewLine;
+      Result := Result + Space + M('MemoCrea') + NewLine;
+    Result := Result + Space + M('MemoAdmin') + NewLine;
     Result := Result + NewLine;
     if MemoGroupInfo <> '' then Result := Result + MemoGroupInfo + NewLine + NewLine;
   end;
@@ -483,15 +622,15 @@ begin
            ' -Inicial "' + ExpandConstant('{tmp}\BaseInicial.sql') + '"';
   if BaseExiste and PaginaBD.Values[0] then Extra := Extra + ' -Respaldo';
 
-  WizardForm.StatusLabel.Caption := 'Instalando la base de datos HotelRydlDB (puede tardar unos minutos)...';
+  WizardForm.StatusLabel.Caption := M('EstadoBD');
   Codigo := EjecutarBD('Instalar', Extra, Salida, Log);
 
   if Codigo = 0 then
   begin
-    ResultadoBD := 'Base de datos HotelRydlDB instalada en ' + Servidor + '.';
+    ResultadoBD := M1('BDInstalada', Servidor);
     Respaldo := LeerValor(Salida, 'respaldo');
     if Respaldo <> '' then
-      ResultadoBD := ResultadoBD + #13#10 + 'Backup de la base anterior: ' + Respaldo;
+      ResultadoBD := ResultadoBD + #13#10 + M1('BDRespaldo', Respaldo);
 
     Salida := ExpandConstant('{tmp}\credenciales.txt');
     if EjecutarBD('Credenciales', '-CarpetaApp "' + ExpandConstant('{app}') + '"', Salida, Log) = 0 then
@@ -501,37 +640,24 @@ begin
       ClavePendiente := LeerValor(Salida, 'clave_pendiente') = '1';
       if UsuarioAdmin <> '' then
       begin
-        ResultadoBD := ResultadoBD + #13#10#13#10 + 'Primer ingreso (anotalo antes de cerrar):' + #13#10 +
-                       '    Usuario: ' + UsuarioAdmin + #13#10;
+        ResultadoBD := ResultadoBD + #13#10#13#10 + M1('PrimerIngreso', UsuarioAdmin) + #13#10;
         if ClavePendiente then
         begin
-          ResultadoBD := ResultadoBD + '    Contraseña inicial: ' + ClaveAdmin + '  (DNI + Apellido)' + #13#10 +
-                         'El sistema te va a pedir que la cambies en el primer ingreso.';
-          MsgBox('Datos para el primer ingreso a Hotel Rydl:' + #13#10#13#10 +
-                 'Usuario: ' + UsuarioAdmin + #13#10 +
-                 'Contraseña inicial: ' + ClaveAdmin + '   (DNI + Apellido)' + #13#10#13#10 +
-                 'Anotalos antes de cerrar este mensaje. En el primer ingreso el sistema te va a pedir cambiar la contraseña.',
-                 mbInformation, MB_OK);
+          ResultadoBD := ResultadoBD + M1('ClaveInicialFin', ClaveAdmin);
+          MsgBox(M2('CartelClave', UsuarioAdmin, ClaveAdmin), mbInformation, MB_OK);
         end
         else
         begin
-          ResultadoBD := ResultadoBD + '    Contraseña: la del administrador que ya tenía la base inicial.';
-          MsgBox('Datos para el primer ingreso a Hotel Rydl:' + #13#10#13#10 +
-                 'Usuario: ' + UsuarioAdmin + #13#10 +
-                 'Contraseña: la del administrador guardada en la base inicial.' + #13#10#13#10 +
-                 'Anotá el usuario antes de cerrar este mensaje.', mbInformation, MB_OK);
+          ResultadoBD := ResultadoBD + M('ClaveExistenteFin');
+          MsgBox(M1('CartelClaveExistente', UsuarioAdmin), mbInformation, MB_OK);
         end;
       end;
     end;
   end
   else
   begin
-    ResultadoBD := 'ATENCIÓN: no se pudo instalar la base de datos (' + LeerValor(Salida, 'error') + ').' + #13#10 +
-                   'Volvé a ejecutar el instalador en modo INSTALAR. Detalle en ' + Log;
-    MsgBox('No se pudo instalar la base de datos HotelRydlDB.' + #13#10#13#10 +
-           LeerValor(Salida, 'error') + #13#10#13#10 +
-           'El programa quedó instalado, pero sin base de datos. Revisá que SQL Server esté iniciado y volvé a ejecutar el instalador en modo INSTALAR.' + #13#10 +
-           'Detalle en: ' + Log, mbError, MB_OK);
+    ResultadoBD := M2('BDErrorFin', LeerValor(Salida, 'error'), Log);
+    MsgBox(M2('BDErrorCartel', LeerValor(Salida, 'error'), Log), mbError, MB_OK);
   end;
 end;
 
@@ -555,7 +681,5 @@ end;
 
 function InitializeUninstall: Boolean;
 begin
-  Result := MsgBox('¿Estás seguro de que querés desinstalar Hotel Rydl?' + #13#10#13#10 +
-                   'Se borra el programa. La base de datos HotelRydlDB y la carpeta Backups NO se borran.',
-                   mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+  Result := MsgBox(M('ConfDesinstalar'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
 end;
