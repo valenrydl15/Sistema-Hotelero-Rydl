@@ -76,7 +76,7 @@ namespace GUI_HRS_480
             btnAnadir = UiMaestros.Boton(this, "Añadir", 910, 130, 170, 38, Tema.BotonPrimario, () => Entrar(Modo.Anadir));
             btnModificar = UiMaestros.Boton(this, "Modificar", 910, 178, 170, 38, Tema.BotonPrimario, () => Entrar(Modo.Modificar));
             btnEliminar = UiMaestros.Boton(this, "Eliminar", 910, 226, 170, 38, UiMaestros.Peligro, Eliminar);
-            tips.SetToolTip(btnActualizar, "Actualizar: vuelve a cargar en la grilla los clientes guardados en la base de datos\n(reemplaza lo que haya en la grilla, por ejemplo clientes des-serializados).");
+            AyudaGUI.Tip(tips, btnActualizar, "Actualizar: vuelve a cargar en la grilla los clientes guardados en la base de datos\n(reemplaza lo que haya en la grilla, por ejemplo clientes des-serializados).");
 
             // Campos
             int y = 362;
@@ -100,18 +100,18 @@ namespace GUI_HRS_480
             txtRutaSerializar = UiMaestros.Caja(this, 20, 640, 360, 400);
             txtRutaSerializar.ReadOnly = true;
             var btnUbicacion = UiMaestros.BotonCarpeta(this, 384, 640, ElegirUbicacion);
-            tips.SetToolTip(btnUbicacion, "Elegir la carpeta y el nombre del archivo XML donde se van a guardar los clientes de la grilla.");
-            tips.SetToolTip(btnSerializar, "Guarda en el archivo XML elegido los clientes que se ven en la grilla.");
+            AyudaGUI.Tip(tips, btnUbicacion, "Elegir la carpeta y el nombre del archivo XML donde se van a guardar los clientes de la grilla.");
+            AyudaGUI.Tip(tips, btnSerializar, "Guarda en el archivo XML elegido los clientes que se ven en la grilla.");
 
             btnDesSerializar = UiMaestros.Boton(this, "DES-SERIALIZAR", 480, 594, 200, 34, Tema.BotonDorado, DesSerializar);
             txtRutaDesSerializar = UiMaestros.Caja(this, 480, 640, 360, 400);
             txtRutaDesSerializar.ReadOnly = true;
             var btnArchivo = UiMaestros.BotonCarpeta(this, 844, 640, ElegirArchivo);
-            tips.SetToolTip(btnArchivo, "Elegir del disco el archivo XML de clientes a des-serializar.");
-            tips.SetToolTip(btnDesSerializar, "Carga en la grilla los clientes del archivo XML elegido (no los guarda en la base).");
+            AyudaGUI.Tip(tips, btnArchivo, "Elegir del disco el archivo XML de clientes a des-serializar.");
+            AyudaGUI.Tip(tips, btnDesSerializar, "Carga en la grilla los clientes del archivo XML elegido (no los guarda en la base).");
 
             btnLimpiar = UiMaestros.Boton(this, "LIMPIAR", 910, 594, 170, 34, Tema.BotonSecundario, Limpiar);
-            tips.SetToolTip(btnLimpiar, "Limpiar: vacía la grilla y los campos de la pantalla.\nNo borra nada de la base de datos ni de los archivos XML.");
+            AyudaGUI.Tip(tips, btnLimpiar, "Limpiar: vacía la grilla y los campos de la pantalla.\nNo borra nada de la base de datos ni de los archivos XML.");
 
             CambiarModo(Modo.Consulta);
         }

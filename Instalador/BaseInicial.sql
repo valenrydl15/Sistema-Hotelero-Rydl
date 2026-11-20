@@ -13,7 +13,7 @@
      check-out, pagos, facturas, todo el circuito de compras, bitácora de eventos,
      bitácora de cambios (Insumos_C) y backups/inconsistencias del DV.
    SE CREA: el usuario administrador del primer ingreso (IdUsuario = 1, usuario maestro)
-     Usuario: admin · Contraseña inicial: 12345678Admin (DNI + Apellido)
+     Usuario: 12345678Admin (DNI + Nombre) · Contraseña inicial: 12345678Rydl (DNI + Apellido)
      Debe cambiar la contraseña en el primer ingreso.
    El DV de todas las tablas vuelve al estado inicial ('0'): el sistema lo calcula
    en el primer inicio de sesión.
@@ -80,8 +80,8 @@ BEGIN TRY
         (IdUsuario, Nombre, Apellido, DNI, Email, NombreUsuario, ContrasenaHash, IdRol,
          Activo, Bloqueado, IntentosFallidos, MaxIntentos, DebeChangiarClave, FechaCreacion, FechaUltimoAcceso, SesionActiva)
     VALUES
-        (1, N'Administrador', N'Admin', N'12345678', NULL, N'admin',
-         N'3224c98bb255967a27939a0f63278db49bdd3c493fd16a5418f254731c1183f7',   -- SHA-256 de "12345678Admin"
+        (1, N'Admin', N'Rydl', N'12345678', NULL, N'12345678Admin',
+         N'9e8049d3b7429fdc4c0daf5518963ab24fb279294e04106e078db40ecc8559aa',   -- SHA-256 de "12345678Rydl"
          @idRolAdmin, 1, 0, 0, 3, 1, GETDATE(), NULL, 0);
     SET IDENTITY_INSERT dbo.Usuarios OFF;
     DBCC CHECKIDENT ('dbo.Usuarios', RESEED, 1) WITH NO_INFOMSGS;

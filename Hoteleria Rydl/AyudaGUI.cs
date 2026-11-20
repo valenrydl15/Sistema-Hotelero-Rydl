@@ -3,9 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using Newtonsoft.Json;
+using SEGURIDAD_HRS_480;
 
 namespace GUI_HRS_480
 {
@@ -13,7 +16,10 @@ namespace GUI_HRS_480
     /// Ayuda en pantalla: cada GUI tiene un botón "?" en la esquina superior derecha.
     ///  · Al pasar el mouse por encima muestra de qué se trata la pantalla, cómo se usa y para qué sirve.
     ///  · Al hacer clic (o con la tecla F1) abre la misma ayuda en una ventana para leerla con calma.
-    /// Los textos están todos acá, uno por pantalla (clave = nombre de la clase del formulario).
+    /// Los textos están todos acá en español, uno por pantalla (clave = nombre de la clase del formulario).
+    /// TRADUCCIÓN: se traducen con Traducciones\Ayudas{idioma}.json (clave = texto en español, valor = traducción),
+    /// en el momento de mostrarse, así siguen al idioma elegido en FrmIdiomas. Lo mismo para los tooltips de
+    /// los botones que se cargan con <see cref="Tip"/>. Si falta una traducción, se muestra el texto en español.
     /// </summary>
     public static class AyudaGUI
     {
@@ -237,6 +243,37 @@ namespace GUI_HRS_480
             },
         };
 
+        // ── Traducción de las ayudas ─────────────────────────────────────────────
+        private static string _idiomaCargado;
+        private static Dictionary<string, string> _textos = new Dictionary<string, string>();
+
+        /// <summary>Texto en el idioma de la sesión (el español es la clave; si no hay traducción, queda en español).</summary>
+        public static string T(string textoEspanol)
+        {
+            if (string.IsNullOrEmpty(textoEspanol)) return textoEspanol;
+            string idioma = SesionManager.Instancia.Idioma ?? "espanol";
+            if (idioma != _idiomaCargado)
+            {
+                _idiomaCargado = idioma;
+                _textos = new Dictionary<string, string>();
+                try
+                {
+                    string ruta = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Traducciones", $"Ayudas{idioma}.json");
+                    if (File.Exists(ruta))
+                        _textos = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(ruta)) ?? _textos;
+                }
+                catch { /* si el archivo está mal, se muestra en español */ }
+            }
+            return _textos.TryGetValue(textoEspanol, out var t) && !string.IsNullOrEmpty(t) ? t : textoEspanol;
+        }
+
+        /// <summary>Tooltip de un botón que se traduce solo: se recalcula cada vez que el mouse entra al control.</summary>
+        public static void Tip(ToolTip tips, Control control, string textoEspanol)
+        {
+            tips.SetToolTip(control, T(textoEspanol));
+            control.MouseEnter += (s, e) => tips.SetToolTip(control, T(textoEspanol));
+        }
+
         /// <summary>Agrega el botón de ayuda "?" y la tecla F1 al formulario (si tiene texto de ayuda).</summary>
         public static void Instalar(Form f)
         {
@@ -248,8 +285,10 @@ namespace GUI_HRS_480
             // Fondo = el color de lo que queda debajo (por ejemplo, el encabezado azul)
             var debajo = f.Controls.Cast<Control>().FirstOrDefault(c => c.Visible && c.Dock != DockStyle.None && c.Bounds.Contains(b.Location));
             b.BackColor = debajo?.BackColor ?? f.BackColor;
-            var tip = new ToolTip { AutoPopDelay = 32000, InitialDelay = 150, ReshowDelay = 100, ToolTipTitle = "Ayuda · " + a.Titulo, ToolTipIcon = ToolTipIcon.Info, ShowAlways = true };
+            var tip = new ToolTip { AutoPopDelay = 32000, InitialDelay = 150, ReshowDelay = 100, ToolTipTitle = T("Ayuda · ") + T(a.Titulo), ToolTipIcon = ToolTipIcon.Info, ShowAlways = true };
             tip.SetToolTip(b, TextoTooltip(a));
+            // el idioma puede cambiar con la pantalla abierta: el texto se arma de nuevo al pasar el mouse
+            b.MouseEnter += (s, e) => { tip.ToolTipTitle = T("Ayuda · ") + T(a.Titulo); tip.SetToolTip(b, TextoTooltip(a)); };
             b.Click += (s, e) => Mostrar(f, a);
             f.Controls.Add(b);
             b.BringToFront();
@@ -277,11 +316,11 @@ namespace GUI_HRS_480
         private static string TextoTooltip(Ayuda a)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("QUÉ ES"); Envolver(sb, a.QueEs, "  ");
-            sb.AppendLine(); sb.AppendLine("CÓMO SE USA");
-            foreach (var p in a.ComoSeUsa) Envolver(sb, p, "  • ", "     ");
-            sb.AppendLine(); sb.AppendLine("PARA QUÉ SIRVE"); Envolver(sb, a.ParaQue, "  ");
-            sb.AppendLine(); sb.Append("(Clic en ? o F1 para ver la ayuda en una ventana)");
+            sb.AppendLine(T("QUÉ ES")); Envolver(sb, T(a.QueEs), "  ");
+            sb.AppendLine(); sb.AppendLine(T("CÓMO SE USA"));
+            foreach (var p in a.ComoSeUsa) Envolver(sb, T(p), "  • ", "     ");
+            sb.AppendLine(); sb.AppendLine(T("PARA QUÉ SIRVE")); Envolver(sb, T(a.ParaQue), "  ");
+            sb.AppendLine(); sb.Append(T("(Clic en ? o F1 para ver la ayuda en una ventana)"));
             return sb.ToString();
         }
 
@@ -306,11 +345,11 @@ namespace GUI_HRS_480
         {
             using var v = new Form
             {
-                Text = "Ayuda · " + a.Titulo, StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
+                Text = T("Ayuda · ") + T(a.Titulo), StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false, MinimizeBox = false, ShowInTaskbar = false, ClientSize = new Size(620, 460), BackColor = Tema.Fondo
             };
             var head = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = Tema.Marino };
-            head.Controls.Add(new Label { Text = a.Titulo, ForeColor = Color.White, Font = Tema.Fuente(13f, FontStyle.Bold), AutoSize = true, Location = new Point(18, 14) });
+            head.Controls.Add(new Label { Text = T(a.Titulo), ForeColor = Color.White, Font = Tema.Fuente(13f, FontStyle.Bold), AutoSize = true, Location = new Point(18, 14) });
             var cuerpo = new RichTextBox
             {
                 ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = Color.White, Font = Tema.Fuente(10f),
@@ -318,10 +357,10 @@ namespace GUI_HRS_480
             };
             void Titulo(string t) { cuerpo.SelectionFont = Tema.Fuente(10.5f, FontStyle.Bold); cuerpo.SelectionColor = Tema.Marino; cuerpo.AppendText(t + "\n"); }
             void Texto(string t) { cuerpo.SelectionFont = Tema.Fuente(10f); cuerpo.SelectionColor = Tema.Texto; cuerpo.AppendText(t + "\n"); }
-            Titulo("Qué es"); Texto(a.QueEs); Texto("");
-            Titulo("Cómo se usa"); foreach (var p in a.ComoSeUsa) Texto("•  " + p); Texto("");
-            Titulo("Para qué sirve"); Texto(a.ParaQue);
-            var ok = new Button { Text = "Entendido", Size = new Size(140, 36), Location = new Point(462, 412), DialogResult = DialogResult.OK };
+            Titulo(T("Qué es")); Texto(T(a.QueEs)); Texto("");
+            Titulo(T("Cómo se usa")); foreach (var p in a.ComoSeUsa) Texto("•  " + T(p)); Texto("");
+            Titulo(T("Para qué sirve")); Texto(T(a.ParaQue));
+            var ok = new Button { Text = T("Entendido"), Size = new Size(140, 36), Location = new Point(462, 412), DialogResult = DialogResult.OK };
             Tema.BotonPrimario(ok);
             v.Controls.Add(cuerpo); v.Controls.Add(head); v.Controls.Add(ok);
             v.AcceptButton = ok;

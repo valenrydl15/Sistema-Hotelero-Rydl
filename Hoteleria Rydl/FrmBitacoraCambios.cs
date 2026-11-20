@@ -89,8 +89,8 @@ namespace GUI_HRS_480
             btnActivar = UiMaestros.Boton(this, "ACTIVAR", 890, y - 2, 180, 36, Tema.BotonDorado, Activar);
             btnSalir = UiMaestros.Boton(this, "SALIR", 890, y + 42, 180, 36, Tema.BotonSecundario, Close);
             var tips = new ToolTip();
-            tips.SetToolTip(btnActivar, "Activa la versión seleccionada: pasa a Act = 1 y el insumo vuelve a esos datos.");
-            tips.SetToolTip(btnLimpiar, "Borra los filtros y vuelve a mostrar toda la bitácora.");
+            AyudaGUI.Tip(tips, btnActivar, "Activa la versión seleccionada: pasa a Act = 1 y el insumo vuelve a esos datos.");
+            AyudaGUI.Tip(tips, btnLimpiar, "Borra los filtros y vuelve a mostrar toda la bitácora.");
 
             lblMensaje = UiMaestros.CuadroMensaje(this, 1090, 496, 180, 166);
         }

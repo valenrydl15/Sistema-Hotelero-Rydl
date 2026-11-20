@@ -18,8 +18,8 @@ AL ABRIR EL INSTALADOR (Instalador_HotelRydl_v3.0.exe) se elige qué hacer:
      solo lo indispensable para que el sistema funcione (roles, permisos, familias,
      módulos y eventos de bitácora, habitaciones, catálogo de insumos y proveedores).
    - Crea el usuario ADMINISTRADOR para el primer ingreso:
-         Usuario: admin
-         Contraseña inicial: 12345678Admin   (DNI + Apellido)
+         Usuario: 12345678Admin   (DNI + Nombre)
+         Contraseña inicial: 12345678Rydl    (DNI + Apellido)
      En el primer ingreso el sistema pide cambiar la contraseña. Después, desde
      Gestión de usuarios, el administrador crea al resto (Supervisor, Recepcionista, etc.).
    - Si la base YA EXISTE, la REEMPLAZA: antes ofrece hacer un backup y pide
